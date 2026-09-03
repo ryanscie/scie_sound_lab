@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sound Lab — Interactive Acoustics</title>
+<style>
+:root{
+  --bg:#0b1020;
+  --panel:#131a2e;
+  --panel2:#182241;
+  --line:#2a3357;
+  --text:#eef1fb;
+  --muted:#8d97bf;
+  --accent:#5ad1ff;
+  --accent2:#ff6ec7;
+  --good:#5cf29a;
+  --warn:#ffcb5c;
+  --bad:#ff6b6b;
+  --wave1:#5ad1ff;
+  --wave2:#ff9f5a;
+  --wave3:#c78bff;
+}
+*{box-sizing:border-box;}
+html,body{
+  margin:0; padding:0; height:100%;
+  background:var(--bg); color:var(--text);
+  font-family:"Helvetica Neue",Arial,"Segoe UI",sans-serif;
+  overflow:hidden;
+}
+body{display:flex; flex-direction:column;}
+
+/* ---------- top bar ---------- */
+#topbar{
+  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  padding:10px 22px;
+  background:linear-gradient(180deg,#141b33,#0f1528);
+  border-bottom:1px solid var(--line);
+  flex:0 0 auto;
+}
+#topbar h1{
+  font-size:20px; margin:0; letter-spacing:.5px; font-weight:700;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+#nav{display:flex; gap:6px; margin-left:20px; flex-wrap:wrap;}
+#nav button{
+  background:transparent; border:1px solid var(--line); color:var(--muted);
+  padding:8px 14px; border-radius:20px; font-size:13px; cursor:pointer;
+  transition:all .2s ease; white-space:nowrap;
+}
+#nav button:hover{border-color:var(--accent); color:var(--text);}
+#nav button.active{
+  background:var(--accent); color:#04121c; border-color:var(--accent); font-weight:700;
+}
+#audioStatus{
+  margin-left:auto; display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted);
+  flex-shrink:0;
+}
+#audioStatus .dot{width:9px;height:9px;border-radius:50%;background:var(--bad); box-shadow:0 0 8px var(--bad);}
+#audioStatus.on .dot{background:var(--good); box-shadow:0 0 8px var(--good);}
+#audioStatus.mic-stopped .dot{background:var(--warn); box-shadow:0 0 8px var(--warn);}
+#startBtn,#micToggleBtn{
+  background:var(--accent2); color:#210014; border:none; padding:9px 18px; border-radius:20px;
+  font-weight:700; cursor:pointer; font-size:13px; letter-spacing:.3px; flex-shrink:0;
+}
+#micToggleBtn{background:#293554;color:var(--text);}
+#micToggleBtn.active{background:var(--bad);color:#fff;}
+#startBtn:hover,#micToggleBtn:hover{filter:brightness(1.1);}
+#startBtn:disabled,#micToggleBtn:disabled{opacity:.4; cursor:default;}
+
+/* ---------- main ---------- */
+#stage{flex:1 1 auto; position:relative; overflow:hidden;}
+.section{
+  position:absolute; inset:0; padding:22px 34px 18px;
+  display:none; flex-direction:column; gap:14px; overflow-y:auto;
+}
+.section.active{display:flex; animation:fadein .35s ease;}
+@keyframes fadein{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+
+.section-head{display:flex; align-items:baseline; gap:14px; flex:0 0 auto;}
+.section-head .num{
+  font-size:13px; color:var(--accent); border:1px solid var(--accent); border-radius:50%;
+  width:26px; height:26px; display:flex; align-items:center; justify-content:center; font-weight:700;
+}
+.section-head h2{margin:0; font-size:24px; font-weight:700;}
+.section-head p{margin:0; color:var(--muted); font-size:14px;}
+
+.panel{
+  background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px 18px;
+}
+.grid2{display:grid; grid-template-columns:1.3fr 1fr; gap:14px; flex:1 1 auto; min-height:0;}
+.grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;}
+.col{display:flex; flex-direction:column; gap:14px; min-height:0;}
+canvas{display:block; width:100%; border-radius:10px; background:#070b16;}
+
+/* prediction / vote flow */
+.flow{display:flex; flex-direction:column; gap:10px;}
+.qbox{
+  background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:14px 16px;
+}
+.qbox .qlabel{font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--accent); font-weight:700; margin-bottom:6px;}
+.qbox .qtext{font-size:15px; margin-bottom:10px;}
+.votebar{display:flex; gap:8px; flex-wrap:wrap;}
+.votebtn{
+  background:#0f1730; border:1px solid var(--line); color:var(--text); padding:8px 14px;
+  border-radius:9px; cursor:pointer; font-size:13px; transition:all .15s ease; position:relative;
+}
+.votebtn:hover{border-color:var(--accent);}
+.votebtn.picked{border-color:var(--accent2); background:#2a1330; box-shadow:0 0 0 1px var(--accent2) inset;}
+.revealBtn{
+  align-self:flex-start; background:var(--good); color:#052013; border:none; padding:9px 16px;
+  border-radius:9px; font-weight:700; cursor:pointer; font-size:13px;
+}
+.revealBtn:disabled{opacity:.35; cursor:default;}
+.reveal{
+  display:none; background:#0f1f18; border:1px solid #23543c; border-radius:10px; padding:10px 14px;
+  font-size:13.5px; line-height:1.5; color:#cdf7e2;
+}
+.reveal.show{display:block; animation:fadein .3s ease;}
+.reveal b{color:var(--good);}
+
+/* controls */
+.controls{display:flex; flex-wrap:wrap; gap:18px; align-items:flex-end;}
+.ctl{display:flex; flex-direction:column; gap:4px; min-width:150px;}
+.ctl label{font-size:12px; color:var(--muted); display:flex; justify-content:space-between;}
+.ctl label span.val{color:var(--accent); font-weight:700; font-variant-numeric:tabular-nums;}
+input[type=range]{
+  -webkit-appearance:none; width:100%; height:6px; border-radius:3px; background:#233058; outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--accent);
+  cursor:pointer; border:2px solid #04121c; box-shadow:0 0 6px rgba(90,209,255,.7);
+}
+button.pill{
+  background:#0f1730; border:1px solid var(--line); color:var(--text); padding:8px 14px;
+  border-radius:20px; cursor:pointer; font-size:13px;
+}
+button.pill:hover{border-color:var(--accent);}
+button.pill.active{background:var(--accent); color:#04121c; border-color:var(--accent); font-weight:700;}
+button.playbtn{
+  background:linear-gradient(90deg,var(--accent),#3ab6e8); border:none; color:#04121c; padding:9px 20px;
+  border-radius:20px; font-weight:800; cursor:pointer; font-size:13.5px;
+}
+button.playbtn.stopping{background:linear-gradient(90deg,var(--bad),#c73f3f); color:#fff;}
+.readout{display:flex; gap:22px; flex-wrap:wrap;}
+.readout .item{display:flex; flex-direction:column; gap:2px;}
+.readout .item .k{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px;}
+.readout .item .v{font-size:20px; font-weight:800; color:var(--accent); font-variant-numeric:tabular-nums;}
+.readout .item .v.good{color:var(--good);}
+.readout .item .v.bad{color:var(--bad);}
+.legend{display:flex; gap:16px; font-size:12px; color:var(--muted); flex-wrap:wrap;}
+.legend .sw{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:middle;}
+
+.harmrow{display:flex; align-items:center; gap:10px;}
+.harmrow .hn{width:34px; font-size:12px; color:var(--muted); text-align:right;}
+.harmrow input[type=range]{flex:1;}
+.harmrow .hv{width:34px; font-size:12px; color:var(--accent); text-align:right; font-variant-numeric:tabular-nums;}
+.harmwrap{display:flex; flex-direction:column; gap:8px; max-height:230px; overflow-y:auto; padding-right:4px;}
+
+.notepad{display:flex; gap:6px; flex-wrap:wrap;}
+.notebtn{
+  background:#0f1730; border:1px solid var(--line); color:var(--text); padding:10px 6px; width:52px;
+  border-radius:8px; cursor:pointer; font-size:12px; font-weight:700; text-align:center;
+}
+.notebtn.on1{background:var(--wave1); color:#04121c; border-color:var(--wave1);}
+.notebtn.on2{background:var(--wave2); color:#210b00; border-color:var(--wave2);}
+.notebtn.onboth{background:linear-gradient(90deg,var(--wave1),var(--wave2)); color:#04121c;}
+
+small.hint{color:var(--muted); font-size:11.5px;}
+::-webkit-scrollbar{width:8px; height:8px;}
+::-webkit-scrollbar-thumb{background:#2a3357; border-radius:4px;}
+
+#micGate{
+  position:absolute; inset:0; background:rgba(5,8,18,.92); z-index:40;
+  display:flex; align-items:center; justify-content:center; flex-direction:column; gap:14px; text-align:center; padding:30px;
+}
+#micGate h3{margin:0; font-size:22px;}
+#micGate p{color:var(--muted); max-width:520px; margin:0; font-size:14px; line-height:1.5;}
+.foldwrap{position:relative;}
+.shm-layout{display:grid;grid-template-columns:minmax(420px,1.6fr) minmax(260px,1fr);gap:16px;align-items:stretch;}
+.shm-formula{background:#0b1329;border:1px solid #33436f;border-radius:10px;padding:12px 14px;color:#dce7ff;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:15px;line-height:1.6;}
+.shm-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;}
+.shm-title h3{margin:0;font-size:18px;}
+.shm-title span{font-size:11px;color:var(--accent);border:1px solid var(--accent);border-radius:20px;padding:4px 9px;text-transform:uppercase;letter-spacing:.6px;}
+.shm-note{font-size:12.5px;line-height:1.55;color:var(--muted);}
+.s1-live-grid{flex:0 0 auto;min-height:390px;}
+.shm-panel{flex:0 0 auto;}
+@media(max-width:900px){.shm-layout{grid-template-columns:1fr;}.s1-live-grid{min-height:620px;}.section{padding-left:14px;padding-right:14px;}}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <h1>🔊 Sound Lab</h1>
+  <div id="nav"></div>
+  <div id="audioStatus"><span class="dot"></span><span id="audioStatusText">Audio engine off</span></div>
+  <button id="startBtn">▶ Start Sound Lab</button>
+  <button id="micToggleBtn" disabled>■ Stop Mic</button>
+</div>
+
+<div id="stage"></div>
+
+<script>
+"use strict";
+
+/* ====================================================================
+   AUDIO ENGINE
+   ==================================================================== */
+const Audio = {
+  ctx:null, master:null, analyser:null,
+  micStream:null, micSource:null, micAnalyser:null,
+  ready:false,
+  async init(){
+    if(this.ctx) return;
+    this.ctx = new (window.AudioContext||window.webkitAudioContext)();
+    this.master = this.ctx.createGain();
+    this.master.gain.value = 0.25;
+    this.master.connect(this.ctx.destination);
+    this.ready = true;
+  },
+  async resume(){ if(this.ctx && this.ctx.state==="suspended") await this.ctx.resume(); },
+  async enableMic(){
+    if(this.micStream) return true;
+    try{
+      this.micStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false, autoGainControl:false}});
+      this.micSource = this.ctx.createMediaStreamSource(this.micStream);
+      this.micAnalyser = this.ctx.createAnalyser();
+      this.micAnalyser.fftSize = 2048;
+      this.micAnalyser.smoothingTimeConstant = 0.35;
+      this.micSource.connect(this.micAnalyser);
+      return true;
+    }catch(e){
+      console.warn("Mic error", e);
+      return false;
+    }
+  },
+  stopMic(){
+    if(this.micSource){
+      try{ this.micSource.disconnect(); }catch(e){ console.warn("Mic disconnect error",e); }
+    }
+    if(this.micStream){ this.micStream.getTracks().forEach(track=>track.stop()); }
+    this.micStream=null;
+    this.micSource=null;
+    this.micAnalyser=null;
+  }
+};
+
+/* simple polyphonic tone player: returns a handle with .stop() */
+function playTone({freq=440, type="sine", real=null, imag=null, duration=null, gain=0.2}={}){
+  const ctx = Audio.ctx;
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  if(real && imag){
+    const wave = ctx.createPeriodicWave(real, imag, {disableNormalization:false});
+    osc.setPeriodicWave(wave);
+  } else {
+    osc.type = type;
+  }
+  osc.frequency.value = freq;
+  const now = ctx.currentTime;
+  g.gain.setValueAtTime(0, now);
+  g.gain.linearRampToValueAtTime(gain, now+0.03);
+  osc.connect(g); g.connect(Audio.master);
+  osc.start();
+  let stopped=false;
+  function stop(){
+    if(stopped) return; stopped=true;
+    const t = ctx.currentTime;
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(g.gain.value, t);
+    g.gain.linearRampToValueAtTime(0, t+0.06);
+    osc.stop(t+0.08);
+  }
+  if(duration) setTimeout(stop, duration*1000);
+  return {osc, gain:g, stop};
+}
+
+/* ====================================================================
+   NAVIGATION
+   ==================================================================== */
+const SECTIONS = [
+  {id:"s1", label:"1 · Sound as Signal"},
+  {id:"s2", label:"2 · Superposition & Beats"},
+  {id:"s3", label:"3 · Sampling Rate & Bit Depth"},
+  {id:"s4", label:"4 · Overtones"},
+  {id:"s5", label:"5 · Chords"},
+  {id:"s6", label:"6 · Sampling & Nyquist"},
+  {id:"s7", label:"7 · Aliasing"},
+  {id:"s8", label:"8 · Wagon Wheel"},
+];
+const navEl = document.getElementById("nav");
+SECTIONS.forEach((s,i)=>{
+  const b = document.createElement("button");
+  b.textContent = s.label; b.dataset.id = s.id;
+  b.addEventListener("click", ()=>showSection(s.id));
+  navEl.appendChild(b);
+});
+let activeSection = null;
+function showSection(id){
+  document.querySelectorAll(".section").forEach(el=>el.classList.toggle("active", el.id===id));
+  document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active", b.dataset.id===id));
+  activeSection = id;
+  onSectionShown(id);
+}
+document.addEventListener("keydown",(e)=>{
+  if(e.target.tagName==="INPUT") return;
+  const idx = SECTIONS.findIndex(s=>s.id===activeSection);
+  if(e.key==="ArrowRight"){ showSection(SECTIONS[Math.min(idx+1,SECTIONS.length-1)].id); }
+  if(e.key==="ArrowLeft"){ showSection(SECTIONS[Math.max(idx-1,0)].id); }
+  const n = parseInt(e.key,10);
+  if(n>=1 && n<=SECTIONS.length){ showSection(SECTIONS[n-1].id); }
+});
+
+/* ====================================================================
+   START BUTTON / MIC GATE
+   ==================================================================== */
+const startBtn = document.getElementById("startBtn");
+const micToggleBtn = document.getElementById("micToggleBtn");
+const audioStatusEl = document.getElementById("audioStatus");
+const audioStatusText = document.getElementById("audioStatusText");
+function updateMicControls(active,unavailable=false){
+  audioStatusEl.classList.add("on");
+  audioStatusEl.classList.toggle("mic-stopped",!active);
+  audioStatusText.textContent=active?"Audio + Mic ready":unavailable?"Audio ready (mic unavailable)":"Audio ready (mic stopped)";
+  micToggleBtn.textContent=active?"■ Stop Mic":unavailable?"🎙 Retry Mic":"🎙 Restart Mic";
+  micToggleBtn.classList.toggle("active",active);
+}
+function showStoppedMicDisplay(message="Microphone stopped"){
+  const waveC=document.getElementById("s1wave"),meterC=document.getElementById("s1meter");
+  if(!waveC||!meterC) return;
+  const wctx=fitCanvas(waveC);clear(wctx,waveC);gridLines(wctx,waveC,4);
+  wctx.fillStyle="#8d97bf";wctx.font="14px sans-serif";wctx.textAlign="center";
+  wctx.fillText(message,waveC.clientWidth/2,waveC.clientHeight/2-12);
+  const mctx=fitCanvas(meterC);clear(mctx,meterC);
+  document.getElementById("s1amp").textContent="0.000";
+  document.getElementById("s1freq").textContent="—";
+  document.getElementById("s1db").textContent="— dB";
+}
+startBtn.addEventListener("click", async ()=>{
+  startBtn.disabled = true; startBtn.textContent = "Starting…";
+  await Audio.init();
+  await Audio.resume();
+  const micOk = await Audio.enableMic();
+  updateMicControls(micOk,!micOk);
+  micToggleBtn.disabled=false;
+  startBtn.textContent = "✓ Running";
+  document.getElementById("micGate")?.remove();
+  showSection("s1");
+  if(!micOk) showStoppedMicDisplay("Microphone unavailable");
+});
+micToggleBtn.addEventListener("click",async ()=>{
+  micToggleBtn.disabled=true;
+  if(Audio.micStream){
+    Audio.stopMic();
+    updateMicControls(false);
+    showStoppedMicDisplay();
+  }else{
+    await Audio.init();await Audio.resume();
+    const micOk=await Audio.enableMic();
+    updateMicControls(micOk,!micOk);
+    if(!micOk) showStoppedMicDisplay("Microphone unavailable");
+  }
+  micToggleBtn.disabled=false;
+});
+window.addEventListener("beforeunload",()=>Audio.stopMic());
+
+/* ====================================================================
+   HELPERS: canvas sizing, colors, waveform math
+   ==================================================================== */
+function fitCanvas(c){
+  const dpr = window.devicePixelRatio||1;
+  const rect = c.getBoundingClientRect();
+  const w = Math.max(1,Math.round(rect.width*dpr));
+  const h = Math.max(1,Math.round(rect.height*dpr));
+  if(c.width!==w || c.height!==h){ c.width=w; c.height=h; }
+  const ctx = c.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return ctx;
+}
+function clear(ctx,c,color="#070b16"){
+  ctx.fillStyle=color;
+  ctx.fillRect(0,0,c.clientWidth,c.clientHeight);
+}
+function gridLines(ctx,c,rows=4){
+  ctx.strokeStyle="rgba(255,255,255,0.06)"; ctx.lineWidth=1;
+  const w=c.clientWidth,h=c.clientHeight;
+  ctx.beginPath();
+  ctx.moveTo(0,h/2); ctx.lineTo(w,h/2);
+  for(let i=1;i<rows;i++){
+    const y = h*i/rows;
+    ctx.moveTo(0,y); ctx.lineTo(w,y);
+  }
+  ctx.strokeStyle="rgba(255,255,255,0.03)";
+  ctx.stroke();
+  ctx.strokeStyle="rgba(90,209,255,0.15)";
+  ctx.beginPath(); ctx.moveTo(0,h/2); ctx.lineTo(w,h/2); ctx.stroke();
+}
+function drawWave(ctx,c,fn,{color="#5ad1ff", cycles=4, lw=2.5, phase=0}={}){
+  const w=c.clientWidth,h=c.clientHeight, mid=h/2, amp=h*0.4;
+  ctx.beginPath(); ctx.strokeStyle=color; ctx.lineWidth=lw; ctx.lineJoin="round";
+  for(let x=0;x<=w;x++){
+    const t = x/w*cycles*2*Math.PI + phase;
+    const y = mid - fn(t)*amp;
+    if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+}
+/* generic harmonic-sum function generator */
+function harmonicFn(amps){ // amps: array indexed 1..N of relative amplitude
+  return (t)=>{
+    let s=0;
+    for(let n=1;n<amps.length;n++){ if(amps[n]) s += amps[n]*Math.sin(n*t); }
+    return s;
+  };
+}
+function normalizeAmp(amps){
+  const max = Math.max(...amps.slice(1), 0.0001);
+  return amps.map(a=>a/ (max>1?max:1));
+}
+
+/* ====================================================================
+   BUILD SECTIONS
+   ==================================================================== */
+const stage = document.getElementById("stage");
+
+function makeSection(id, title, sub){
+  const sec = document.createElement("div");
+  sec.className="section"; sec.id=id;
+  sec.innerHTML = `
+    <div class="section-head">
+      <div class="num">${id.replace('s','')}</div>
+      <div><h2>${title}</h2><p>${sub}</p></div>
+    </div>
+  `;
+  stage.appendChild(sec);
+  return sec;
+}
+function qa(sec, {q, options, answerIdx, explain}){
+  const wrap = document.createElement("div");
+  wrap.className="qbox";
+  wrap.innerHTML = `
+    <div class="qlabel">Predict first</div>
+    <div class="qtext">${q}</div>
+    <div class="votebar"></div>
+    <button class="revealBtn" disabled>Reveal answer</button>
+    <div class="reveal"></div>
+  `;
+  const bar = wrap.querySelector(".votebar");
+  const revealBtn = wrap.querySelector(".revealBtn");
+  const revealBox = wrap.querySelector(".reveal");
+  let picked=-1;
+  options.forEach((opt,i)=>{
+    const b=document.createElement("button");
+    b.className="votebtn"; b.textContent=opt;
+    b.addEventListener("click",()=>{
+      picked=i;
+      bar.querySelectorAll(".votebtn").forEach(x=>x.classList.remove("picked"));
+      b.classList.add("picked");
+      revealBtn.disabled=false;
+    });
+    bar.appendChild(b);
+  });
+  revealBtn.addEventListener("click",()=>{
+    revealBox.classList.add("show");
+    const correct = picked===answerIdx;
+    revealBox.innerHTML = `${correct? "🎉 <b>Right!</b>" : "🤔 <b>Not quite —</b>"} ${explain}`;
+  });
+  sec.appendChild(wrap);
+  return wrap;
+}
+
+/* -------------------- SECTION 1: Sound as a Signal -------------------- */
+(function(){
+  const sec = makeSection("s1","Sound as a Signal","See your voice become a waveform in real time.");
+  qa(sec,{
+    q:"If you clap sharply vs. hum a steady note, which will look more like a smooth repeating wave on screen?",
+    options:["The clap","The hum","Both the same"],
+    answerIdx:1,
+    explain:"A steady hum is close to a <b>periodic</b> tone, so it repeats a similar shape each cycle. A clap is a brief burst of energy across many frequencies at once — a sharp spike, not a repeating pattern."
+  });
+  sec.insertAdjacentHTML("beforeend", `
+    <div class="grid2 s1-live-grid">
+      <div class="col">
+        <div class="panel" style="flex:1; display:flex; flex-direction:column;">
+          <div class="legend"><span><span class="sw" style="background:var(--wave1)"></span>Live microphone waveform</span></div>
+          <canvas id="s1wave" style="flex:1; min-height:220px;"></canvas>
+        </div>
+      </div>
+      <div class="col">
+        <div class="panel">
+          <div class="readout">
+            <div class="item"><div class="k">Amplitude</div><div class="v" id="s1amp">0.00</div></div>
+            <div class="item"><div class="k">Est. Frequency</div><div class="v" id="s1freq">— Hz</div></div>
+            <div class="item"><div class="k">Loudness</div><div class="v" id="s1db">— dB</div></div>
+          </div>
+        </div>
+        <div class="panel" style="flex:1; display:flex; flex-direction:column;">
+          <div class="legend">Amplitude meter</div>
+          <canvas id="s1meter" style="flex:1; min-height:120px;"></canvas>
+        </div>
+        <div class="panel"><small class="hint">Try: clap, whistle, hum a low note vs a high note, speak loudly vs quietly. Watch the wave get taller (louder) or tighter/wider spaced (pitch).</small></div>
+      </div>
+    </div>
+    <div class="panel shm-panel">
+      <div class="shm-title">
+        <h3>From simple harmonic motion to a sound signal</h3>
+        <span>01 · SHM to sound</span>
+      </div>
+      <div class="shm-layout">
+        <canvas id="s1shm" style="width:100%;height:360px;min-height:300px;"></canvas>
+        <div class="col">
+          <div class="shm-formula">a = −ω²x<br>x(t) = A sin(ωt + φ)<br>x(t) = A sin(2πft + φ)<br>T = 1/f</div>
+          <div class="controls">
+            <div class="ctl"><label>Amplitude A <span class="val" id="s1shmAVal">1.00</span></label><input id="s1shmA" type="range" min="0.2" max="2" step="0.01" value="1"></div>
+            <div class="ctl"><label>Frequency f <span class="val" id="s1shmFVal">1.00</span> Hz</label><input id="s1shmF" type="range" min="0.2" max="3" step="0.01" value="1"></div>
+            <div class="ctl"><label>Phase φ <span class="val" id="s1shmPhiVal">0.00</span> rad</label><input id="s1shmPhi" type="range" min="-3.1416" max="3.1416" step="0.01" value="0"></div>
+            <div class="ctl"><label>Time t <span class="val" id="s1shmTimeVal">0.350</span> s</label><input id="s1shmTime" type="range" min="0" max="2" step="0.005" value="0.35"></div>
+          </div>
+          <div class="readout">
+            <div class="item"><div class="k">Phase</div><div class="v" id="s1shmPhase">—</div></div>
+            <div class="item"><div class="k">x(t)</div><div class="v" id="s1shmX">—</div></div>
+            <div class="item"><div class="k">Period T</div><div class="v" id="s1shmPeriod">—</div></div>
+          </div>
+          <div class="shm-note">The circle is a mathematical model of phase, not the path of an air particle. For sound, x(t) can represent pressure deviation or microphone voltage measured at one fixed location.</div>
+        </div>
+      </div>
+    </div>
+  `);
+  const waveC = sec.querySelector("#s1wave");
+  const meterC = sec.querySelector("#s1meter");
+  const ampEl = sec.querySelector("#s1amp");
+  const freqEl = sec.querySelector("#s1freq");
+  const dbEl = sec.querySelector("#s1db");
+
+  let smoothedMeter = 0;
+  function autoCorrelateFreq(buf, sampleRate){
+    // simple autocorrelation pitch detector
+    const SIZE = buf.length;
+    let rms=0;
+    for(let i=0;i<SIZE;i++) rms += buf[i]*buf[i];
+    rms = Math.sqrt(rms/SIZE);
+    if(rms < 0.01) return {freq:-1, rms};
+    let r1=0, r2=SIZE-1, thres=0.2;
+    for(let i=0;i<SIZE/2;i++){ if(Math.abs(buf[i])<thres){ r1=i; break; } }
+    for(let i=1;i<SIZE/2;i++){ if(Math.abs(buf[SIZE-i])<thres){ r2=SIZE-i; break; } }
+    const trimmed = buf.slice(r1,r2);
+    const n = trimmed.length;
+    const c = new Array(n).fill(0);
+    for(let lag=0; lag<n; lag++){
+      let sum=0;
+      for(let i=0;i<n-lag;i++) sum += trimmed[i]*trimmed[i+lag];
+      c[lag]=sum;
+    }
+    let d=0; while(d<n-1 && c[d]>c[d+1]) d++;
+    let maxpos=-1, maxval=-1;
+    for(let i=d;i<n;i++){ if(c[i]>maxval){ maxval=c[i]; maxpos=i; } }
+    if(maxpos<=0) return {freq:-1, rms};
+    const T0 = maxpos;
+    const freq = sampleRate/T0;
+    if(freq<50||freq>2000) return {freq:-1, rms};
+    return {freq, rms};
+  }
+
+  function loop(){
+    if(activeSection==="s1" && Audio.micAnalyser){
+      const N = Audio.micAnalyser.fftSize;
+      const buf = new Float32Array(N);
+      Audio.micAnalyser.getFloatTimeDomainData(buf);
+      const wctx = fitCanvas(waveC); clear(wctx,waveC); gridLines(wctx,waveC,4);
+      const w=waveC.clientWidth,h=waveC.clientHeight,mid=h/2;
+      wctx.beginPath(); wctx.strokeStyle="#5ad1ff"; wctx.lineWidth=2.2;
+      for(let x=0;x<w;x++){
+        const idx = Math.floor(x/w*N);
+        const y = mid - buf[idx]*mid*1.6;
+        if(x===0) wctx.moveTo(x,y); else wctx.lineTo(x,y);
+      }
+      wctx.stroke();
+
+      const {freq, rms} = autoCorrelateFreq(buf, Audio.ctx.sampleRate);
+      ampEl.textContent = rms.toFixed(3);
+      freqEl.textContent = freq>0 ? Math.round(freq)+" Hz" : "—";
+      const db = rms>0.0001 ? (20*Math.log10(rms)).toFixed(1) : "-∞";
+      dbEl.textContent = db+" dB";
+
+      smoothedMeter += (rms*3 - smoothedMeter)*0.3;
+      const mctx = fitCanvas(meterC); clear(mctx,meterC);
+      const mw=meterC.clientWidth, mh=meterC.clientHeight;
+      const level = Math.min(1,smoothedMeter);
+      const barW = mw*0.7, barH= mh*0.5, bx=(mw-barW)/2, by=(mh-barH)/2;
+      mctx.fillStyle="#182241"; mctx.fillRect(bx,by,barW,barH);
+      const grad = mctx.createLinearGradient(bx,0,bx+barW,0);
+      grad.addColorStop(0,"#5ad1ff"); grad.addColorStop(0.7,"#ffcb5c"); grad.addColorStop(1,"#ff6b6b");
+      mctx.fillStyle=grad; mctx.fillRect(bx,by,barW*level,barH);
+      mctx.strokeStyle="#2a3357"; mctx.strokeRect(bx,by,barW,barH);
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  const shmC=sec.querySelector("#s1shm");
+  const shmA=sec.querySelector("#s1shmA"),shmF=sec.querySelector("#s1shmF");
+  const shmPhi=sec.querySelector("#s1shmPhi"),shmTime=sec.querySelector("#s1shmTime");
+  function renderShm(){
+    const A=parseFloat(shmA.value),f=parseFloat(shmF.value),phi=parseFloat(shmPhi.value),now=parseFloat(shmTime.value);
+    const theta=2*Math.PI*f*now+phi;
+    const value=A*Math.sin(theta);
+    sec.querySelector("#s1shmAVal").textContent=A.toFixed(2);
+    sec.querySelector("#s1shmFVal").textContent=f.toFixed(2);
+    sec.querySelector("#s1shmPhiVal").textContent=phi.toFixed(2);
+    sec.querySelector("#s1shmTimeVal").textContent=now.toFixed(3);
+    sec.querySelector("#s1shmPhase").textContent=theta.toFixed(2)+" rad";
+    sec.querySelector("#s1shmX").textContent=value.toFixed(2);
+    sec.querySelector("#s1shmPeriod").textContent=(1/f).toFixed(2)+" s";
+
+    const ctx=fitCanvas(shmC);clear(ctx,shmC);
+    const w=shmC.clientWidth,h=shmC.clientHeight;
+    const circleArea=Math.min(w*.36,280),cx=circleArea*.48,cy=h*.5;
+    const maxRadius=Math.min(circleArea*.34,h*.28),radius=maxRadius*A/2;
+    ctx.strokeStyle="#334155";ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(cx-maxRadius-12,cy);ctx.lineTo(cx+maxRadius+12,cy);ctx.moveTo(cx,cy-maxRadius-12);ctx.lineTo(cx,cy+maxRadius+12);ctx.stroke();
+    ctx.strokeStyle="#64748b";ctx.lineWidth=1.8;ctx.beginPath();ctx.arc(cx,cy,radius,0,Math.PI*2);ctx.stroke();
+    const pointX=cx+radius*Math.cos(theta),pointY=cy-radius*Math.sin(theta);
+    ctx.strokeStyle="#5ad1ff";ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(pointX,pointY);ctx.stroke();
+    ctx.strokeStyle="#ff9f5a";ctx.lineWidth=1.7;ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(pointX,pointY);ctx.lineTo(cx,pointY);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle="#ff6b6b";ctx.beginPath();ctx.arc(pointX,pointY,6,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#c78bff";ctx.beginPath();ctx.arc(cx,pointY,5,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#8d97bf";ctx.font="11px sans-serif";ctx.textAlign="center";ctx.fillText("uniform phase rotation",cx,h-18);
+
+    const left=circleArea+22,right=w-16,top=28,bottom=h-32,mid=(top+bottom)/2;
+    const plotHeight=bottom-top,yScale=plotHeight/4.5;
+    ctx.strokeStyle="rgba(255,255,255,.08)";ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(left,mid);ctx.lineTo(right,mid);ctx.moveTo(left,top);ctx.lineTo(left,bottom);ctx.stroke();
+    for(let second=0;second<=2;second+=.5){
+      const x=left+second/2*(right-left);
+      ctx.beginPath();ctx.moveTo(x,mid-3);ctx.lineTo(x,mid+3);ctx.stroke();
+      ctx.fillStyle="#8d97bf";ctx.textAlign="center";ctx.fillText(second.toFixed(1),x,bottom+16);
+    }
+    ctx.strokeStyle="#5ad1ff";ctx.lineWidth=2.5;ctx.beginPath();
+    for(let i=0;i<=1000;i++){
+      const t=i/1000*2,x=left+i/1000*(right-left),y=mid-A*Math.sin(2*Math.PI*f*t+phi)*yScale;
+      if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+    const markerX=left+now/2*(right-left),markerY=mid-value*yScale;
+    ctx.strokeStyle="#64748b";ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(markerX,top);ctx.lineTo(markerX,bottom);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle="#ff6b6b";ctx.beginPath();ctx.arc(markerX,markerY,6,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#8d97bf";ctx.font="11px sans-serif";ctx.textAlign="center";ctx.fillText("time, t (s)",(left+right)/2,h-3);
+    ctx.textAlign="left";ctx.fillText("same motion drawn against time",left,16);
+  }
+  [shmA,shmF,shmPhi,shmTime].forEach(slider=>slider.addEventListener("input",renderShm));
+  renderShm();
+  new ResizeObserver(renderShm).observe(shmC);
+})();
+
+/* -------------------- SECTION 2: Superposition & Beats -------------------- */
+(function(){
+  const sec = makeSection("s2","Superposition & Beats","Add two nearby frequencies and hear a slow loudness pulse emerge.");
+  qa(sec,{
+    q:"If 440 Hz and 444 Hz tones play together, how many loudness beats occur each second?",
+    options:["2 beats/s","4 beats/s","442 beats/s"],
+    answerIdx:1,
+    explain:"The beat rate is the absolute frequency difference: <b>|444 − 440| = 4 Hz</b>. The rapid oscillation has a pitch near their average, 442 Hz, while its amplitude swells four times per second."
+  });
+  sec.insertAdjacentHTML("beforeend", `
+    <div class="grid2" style="flex:1;">
+      <div class="col">
+        <div class="panel" style="flex:1;display:flex;flex-direction:column;min-height:220px;">
+          <div class="legend">
+            <span><span class="sw" style="background:var(--wave1)"></span>wave 1</span>
+            <span><span class="sw" style="background:var(--wave2)"></span>wave 2</span>
+            <span><span class="sw" style="background:var(--wave3)"></span>sum</span>
+          </div>
+          <canvas id="s2zoom" style="flex:1;min-height:180px;"></canvas>
+          <small class="hint">Zoomed to 25 ms: amplitudes add at every instant.</small>
+        </div>
+        <div class="panel" style="flex:1;display:flex;flex-direction:column;min-height:240px;">
+          <div class="legend">
+            <span><span class="sw" style="background:var(--wave3)"></span>combined wave</span>
+            <span><span class="sw" style="background:var(--bad)"></span>loudness envelope</span>
+          </div>
+          <canvas id="s2long" style="flex:1;min-height:190px;"></canvas>
+          <small class="hint">Long view: close frequencies create a slow envelope that your ear hears as beats.</small>
+        </div>
+      </div>
+      <div class="col">
+        <div class="panel">
+          <div class="controls">
+            <div class="ctl"><label>Frequency f₁ <span><span class="val" id="s2f1Val">440</span> Hz</span></label>
+              <input type="range" id="s2f1" min="200" max="800" step="1" value="440"></div>
+            <div class="ctl"><label>Frequency f₂ <span><span class="val" id="s2f2Val">444</span> Hz</span></label>
+              <input type="range" id="s2f2" min="200" max="800" step="1" value="444"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="readout">
+            <div class="item"><div class="k">Heard pitch (approx.)</div><div class="v" id="s2pitch">442.0 Hz</div></div>
+            <div class="item"><div class="k">Beat rate |f₂−f₁|</div><div class="v" id="s2beat">4.0 Hz</div></div>
+            <div class="item"><div class="k">Time between beats</div><div class="v" id="s2period">0.250 s</div></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="shm-formula">sin(2πf₁t) + sin(2πf₂t)<br>= 2 cos(π(f₂−f₁)t)<br>&nbsp;&nbsp;× sin(2π((f₁+f₂)/2)t)</div>
+        </div>
+        <div class="panel">
+          <div class="controls">
+            <button class="playbtn" id="s2play">▶ Play both tones</button>
+            <button class="pill" id="s2export">Download 5 s WAV</button>
+          </div>
+          <small class="hint" id="s2exportStatus">Try making the frequencies equal, then slowly move one away.</small>
+        </div>
+      </div>
+    </div>
+  `);
+
+  const zoomC=sec.querySelector("#s2zoom"), longC=sec.querySelector("#s2long");
+  const f1Slider=sec.querySelector("#s2f1"), f2Slider=sec.querySelector("#s2f2");
+  const f1Val=sec.querySelector("#s2f1Val"), f2Val=sec.querySelector("#s2f2Val");
+  const pitchEl=sec.querySelector("#s2pitch"), beatEl=sec.querySelector("#s2beat"), periodEl=sec.querySelector("#s2period");
+  const AMP=.45;
+
+  function beatPlotBox(ctx,c,xLabel){
+    const w=c.clientWidth,h=c.clientHeight;
+    const box={left:34,right:w-10,top:10,bottom:h-24};
+    box.width=Math.max(1,box.right-box.left);box.height=Math.max(1,box.bottom-box.top);
+    box.x=u=>box.left+u*box.width;box.y=v=>box.top+(1-(v+1.05)/2.1)*box.height;
+    ctx.strokeStyle="rgba(255,255,255,.09)";ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(box.left,box.y(0));ctx.lineTo(box.right,box.y(0));ctx.stroke();
+    ctx.fillStyle="#8d97bf";ctx.font="10px sans-serif";ctx.textAlign="center";
+    ctx.fillText(xLabel,(box.left+box.right)/2,h-6);
+    return box;
+  }
+  function drawCurve(ctx,box,steps,fn,color,width=2,dash=[]){
+    ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=width;ctx.setLineDash(dash);
+    for(let i=0;i<=steps;i++){
+      const u=i/steps,y=fn(u);
+      if(i===0)ctx.moveTo(box.x(u),box.y(y));else ctx.lineTo(box.x(u),box.y(y));
+    }
+    ctx.stroke();ctx.setLineDash([]);
+  }
+  function render(){
+    const f1=parseFloat(f1Slider.value),f2=parseFloat(f2Slider.value);
+    const beat=Math.abs(f2-f1),pitch=(f1+f2)/2;
+    f1Val.textContent=f1.toFixed(0);f2Val.textContent=f2.toFixed(0);
+    pitchEl.textContent=pitch.toFixed(1)+" Hz";beatEl.textContent=beat.toFixed(1)+" Hz";
+    periodEl.textContent=beat? (1/beat).toFixed(3)+" s":"∞ (no beats)";
+
+    const zctx=fitCanvas(zoomC);clear(zctx,zoomC);const zb=beatPlotBox(zctx,zoomC,"time (ms), 0–25");
+    drawCurve(zctx,zb,1200,u=>AMP*Math.sin(2*Math.PI*f1*u*.025),"#5ad1ff",1.7);
+    drawCurve(zctx,zb,1200,u=>AMP*Math.sin(2*Math.PI*f2*u*.025),"#ff9f5a",1.7);
+    drawCurve(zctx,zb,1200,u=>AMP*Math.sin(2*Math.PI*f1*u*.025)+AMP*Math.sin(2*Math.PI*f2*u*.025),"#c78bff",2.4);
+
+    const lctx=fitCanvas(longC);clear(lctx,longC);const lb=beatPlotBox(lctx,longC,"time (s), 0–1.25");
+    drawCurve(lctx,lb,6000,u=>AMP*Math.sin(2*Math.PI*f1*u*1.25)+AMP*Math.sin(2*Math.PI*f2*u*1.25),"#c78bff",.85);
+    drawCurve(lctx,lb,1200,u=>2*AMP*Math.abs(Math.cos(Math.PI*(f2-f1)*u*1.25)),"#ff6b6b",2,[6,4]);
+    drawCurve(lctx,lb,1200,u=>-2*AMP*Math.abs(Math.cos(Math.PI*(f2-f1)*u*1.25)),"#ff6b6b",2,[6,4]);
+  }
+
+  let tones=[];
+  const playBtn=sec.querySelector("#s2play");
+  function stopTones(){tones.forEach(t=>t.stop());tones=[];playBtn.textContent="▶ Play both tones";playBtn.classList.remove("stopping");}
+  playBtn.addEventListener("click",async()=>{
+    await Audio.init();await Audio.resume();
+    if(tones.length){stopTones();return;}
+    tones=[playTone({freq:parseFloat(f1Slider.value),type:"sine",gain:.12}),playTone({freq:parseFloat(f2Slider.value),type:"sine",gain:.12})];
+    playBtn.textContent="■ Stop";playBtn.classList.add("stopping");
+  });
+  function update(){render();if(tones.length){tones[0].osc.frequency.value=parseFloat(f1Slider.value);tones[1].osc.frequency.value=parseFloat(f2Slider.value);}}
+  [f1Slider,f2Slider].forEach(s=>s.addEventListener("input",update));
+
+  function downloadWav(){
+    const sampleRate=44100,duration=5,total=sampleRate*duration;
+    const buffer=new ArrayBuffer(44+total*2),view=new DataView(buffer);
+    const write=(offset,text)=>{for(let i=0;i<text.length;i++)view.setUint8(offset+i,text.charCodeAt(i));};
+    write(0,"RIFF");view.setUint32(4,36+total*2,true);write(8,"WAVE");write(12,"fmt ");
+    view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,1,true);
+    view.setUint32(24,sampleRate,true);view.setUint32(28,sampleRate*2,true);view.setUint16(32,2,true);view.setUint16(34,16,true);
+    write(36,"data");view.setUint32(40,total*2,true);
+    const f1=parseFloat(f1Slider.value),f2=parseFloat(f2Slider.value),fade=Math.floor(.03*sampleRate);
+    for(let i=0;i<total;i++){
+      let sample=AMP*Math.sin(2*Math.PI*f1*i/sampleRate)+AMP*Math.sin(2*Math.PI*f2*i/sampleRate);
+      if(i<fade)sample*=i/fade;if(i>=total-fade)sample*=(total-1-i)/fade;
+      sample=Math.max(-1,Math.min(1,sample));view.setInt16(44+i*2,Math.round(sample*32767),true);
+    }
+    const url=URL.createObjectURL(new Blob([view],{type:"audio/wav"}));
+    const a=document.createElement("a");a.href=url;a.download="beats_live.wav";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    sec.querySelector("#s2exportStatus").textContent="Saved beats_live.wav using the current frequencies.";
+  }
+  sec.querySelector("#s2export").addEventListener("click",downloadWav);
+  render();
+  [zoomC,longC].forEach(c=>new ResizeObserver(render).observe(c));
+})();
+
+/* -------------------- SECTION 4: Overtones -------------------- */
+(function(){
+  const sec = makeSection("s4","Overtones / Harmonic Fingerprint","Mix harmonics to build any timbre — sine, square, triangle, sawtooth.");
+  qa(sec,{
+    q:"A square wave and a sine wave can both be tuned to the exact same pitch (frequency). Why do they sound different?",
+    options:["They don't — same pitch means same sound","Square waves are louder","Square waves contain extra overtone frequencies stacked on top of the fundamental"],
+    answerIdx:2,
+    explain:"Pitch is set by the <b>fundamental frequency</b>, but <b>timbre</b> (tone color) comes from which overtones (harmonics) are mixed in and how loud each one is — that's the instrument's 'fingerprint'."
+  });
+  const N_HARM = 8;
+  let amps = new Array(N_HARM+1).fill(0); amps[1]=1;
+  const PRESETS = {
+    sine:   ()=>{ const a=new Array(N_HARM+1).fill(0); a[1]=1; return a; },
+    square: ()=>{ const a=new Array(N_HARM+1).fill(0); for(let n=1;n<=N_HARM;n+=2) a[n]=1/n; return a; },
+    triangle:()=>{ const a=new Array(N_HARM+1).fill(0); for(let n=1;n<=N_HARM;n+=2) a[n]=1/(n*n) * (((n-1)/2)%2===0?1:-1); return a; },
+    sawtooth:()=>{ const a=new Array(N_HARM+1).fill(0); for(let n=1;n<=N_HARM;n++) a[n]=1/n * (n%2===0?-1:1); return a; },
+  };
+
+  sec.insertAdjacentHTML("beforeend", `
+    <div class="grid2" style="flex:1;">
+      <div class="col">
+        <div class="panel">
+          <div class="controls">
+            <div class="ctl"><label>Waveform preset</label>
+              <div class="votebar" id="s4presets">
+                ${Object.keys(PRESETS).map(k=>`<button class="pill" data-p="${k}">${k}</button>`).join("")}
+                <button class="pill" data-p="custom">custom</button>
+              </div>
+            </div>
+            <div class="ctl" style="min-width:120px;">
+              <label>Fundamental <span class="val" id="s4fVal">220</span> Hz</label>
+              <input type="range" id="s4f" min="110" max="660" step="1" value="220">
+            </div>
+            <button class="playbtn" id="s4play">▶ Play tone</button>
+          </div>
+        </div>
+        <div class="panel" style="flex:1; display:flex; flex-direction:column;">
+          <div class="legend"><span><span class="sw" style="background:var(--wave1)"></span>Resulting waveform</span></div>
+          <canvas id="s4wave" style="flex:1; min-height:180px;"></canvas>
+        </div>
+        <div class="panel" style="flex:1; display:flex; flex-direction:column;">
+          <div class="legend"><span><span class="sw" style="background:var(--wave2)"></span>Frequency spectrum (harmonics)</span></div>
+          <canvas id="s4spec" style="flex:1; min-height:150px;"></canvas>
+        </div>
+      </div>
+      <div class="col">
+        <div class="panel">
+          <div class="legend" style="margin-bottom:8px;">Harmonic amplitude sliders</div>
+          <div class="harmwrap" id="s4harms"></div>
+        </div>
+        <div class="panel"><small class="hint">Odd harmonics only → hollow, clarinet-like (square). All harmonics fading fast → soft, rounded (triangle). All harmonics fading slowly → bright, buzzy (sawtooth). Drag sliders to sculpt your own timbre.</small></div>
+      </div>
+    </div>
+  `);
+
+  const harmsWrap = sec.querySelector("#s4harms");
+  const sliders=[];
+  for(let n=1;n<=N_HARM;n++){
+    const row=document.createElement("div"); row.className="harmrow";
+    row.innerHTML = `<div class="hn">${n===1?"Fund.":"H"+n}</div><input type="range" min="0" max="100" value="${n===1?100:0}"><div class="hv">${n===1?100:0}%</div>`;
+    harmsWrap.appendChild(row);
+    const inp = row.querySelector("input"); const hv = row.querySelector(".hv");
+    inp.addEventListener("input",()=>{ amps[n]=inp.value/100; hv.textContent=inp.value+"%"; setPreset("custom"); render(); });
+    sliders.push(inp);
+  }
+  function loadAmps(a){
+    amps = a.slice();
+    for(let n=1;n<=N_HARM;n++){
+      const mag = Math.round(Math.abs(amps[n]||0)*100);
+      sliders[n-1].value = mag;
+      sliders[n-1].nextElementSibling.textContent = mag+"%";
+    }
+  }
+  const presetBtns = sec.querySelectorAll("#s4presets .pill");
+  function setPreset(name){
+    presetBtns.forEach(b=>b.classList.toggle("active", b.dataset.p===name));
+  }
+  presetBtns.forEach(b=>{
+    b.addEventListener("click",()=>{
+      if(b.dataset.p!=="custom") loadAmps(PRESETS[b.dataset.p]());
+      setPreset(b.dataset.p);
+      render();
+    });
+  });
+  setPreset("sine");
+
+  const fSlider = sec.querySelector("#s4f"); const fVal = sec.querySelector("#s4fVal");
+  fSlider.addEventListener("input",()=>{ fVal.textContent=fSlider.value; });
+
+  const waveC = sec.querySelector("#s4wave"); const specC = sec.querySelector("#s4spec");
+  function render(){
+    const wctx = fitCanvas(waveC); clear(wctx,waveC); gridLines(wctx,waveC,4);
+    drawWave(wctx,waveC, harmonicFn(amps), {color:"#5ad1ff", cycles:3});
+
+    const sctx = fitCanvas(specC); clear(sctx,specC);
+    const w=specC.clientWidth,h=specC.clientHeight;
+    const barW = w/(N_HARM+1);
+    for(let n=1;n<=N_HARM;n++){
+      const bh = Math.abs(amps[n])*(h-24);
+      const x = barW*n + barW*0.15;
+      sctx.fillStyle = n===1? "#ff9f5a":"#5ad1ff";
+      sctx.fillRect(x, h-bh-18, barW*0.7, bh);
+      sctx.fillStyle="#8d97bf"; sctx.font="11px sans-serif"; sctx.textAlign="center";
+      sctx.fillText((n*parseFloat(fSlider.value))+"Hz", x+barW*0.35, h-4);
+    }
+  }
+  render();
+
+  let tone=null;
+  const playBtn = sec.querySelector("#s4play");
+  playBtn.addEventListener("click", async ()=>{
+    await Audio.init(); await Audio.resume();
+    if(tone){ tone.stop(); tone=null; playBtn.textContent="▶ Play tone"; playBtn.classList.remove("stopping"); return; }
+    const real = new Float32Array(N_HARM+1); const imag = new Float32Array(N_HARM+1);
+    for(let n=1;n<=N_HARM;n++) imag[n]=amps[n];
+    tone = playTone({freq:parseFloat(fSlider.value), real, imag, gain:0.18});
+    playBtn.textContent="■ Stop"; playBtn.classList.add("stopping");
+  });
+  fSlider.addEventListener("input",()=>{ if(tone) tone.osc.frequency.value = parseFloat(fSlider.value); });
+})();
+
+/* -------------------- SECTION 5: Chords -------------------- */
+(function(){
+  const sec = makeSection("s5","Chords","Two pure tones added together — superposition in action.");
+  qa(sec,{
+    q:"When two different notes play together, what happens to the air-pressure wave that reaches your ear?",
+    options:["The two waves take turns, alternating rapidly","The two waves simply add together, sample by sample","One wave cancels the other completely"],
+    answerIdx:1,
+    explain:"Sound waves obey <b>superposition</b>: at every instant, the total pressure is just the sum of each individual wave's pressure at that instant. That's why the combined waveform looks 'lumpy' — it's literally wave 1 + wave 2."
+  });
+  const NOTES = [
+    ["C4",261.63],["D4",293.66],["E4",329.63],["F4",349.23],["G4",392.00],["A4",440.00],["B4",493.88],["C5",523.25]
+  ];
+  sec.insertAdjacentHTML("beforeend", `
+    <div class="grid2" style="flex:1;">
+      <div class="col">
+        <div class="panel">
+          <div class="legend" style="margin-bottom:8px;">Pick up to two notes</div>
+          <div class="notepad" id="s5notes"></div>
+        </div>
+        <div class="panel" style="flex:1; display:flex; flex-direction:column;">
+          <div class="legend">
+            <span><span class="sw" style="background:var(--wave1)"></span>Note A</span>
+            <span><span class="sw" style="background:var(--wave2)"></span>Note B</span>
+          </div>
+          <canvas id="s5individual" style="flex:1; min-height:110px;"></canvas>
+        </div>
+        <div class="panel" style="flex:1; display:flex; flex-direction:column;">
+          <div class="legend"><span><span class="sw" style="background:var(--wave3)"></span>Combined waveform (A + B)</span></div>
+          <canvas id="s5combined" style="flex:1; min-height:150px;"></canvas>
+        </div>
+      </div>
+      <div class="col">
+        <div class="panel" style="flex:1; display:flex; flex-direction:column;">
+          <div class="legend">Frequency spectrum</div>
+          <canvas id="s5spec" style="flex:1; min-height:200px;"></canvas>
+        </div>
+        <div class="panel">
+          <div class="readout">
+            <div class="item"><div class="k">Note A</div><div class="v" id="s5a">—</div></div>
+            <div class="item"><div class="k">Note B</div><div class="v" id="s5b">—</div></div>
+          </div>
+          <button class="playbtn" id="s5play" style="margin-top:10px;">▶ Play chord</button>
+        </div>
+        <div class="panel"><small class="hint">Try C4+E4+G4-style pairs (consonant, smooth beating) vs C4+C#4 (dissonant, fast beating) by picking adjacent notes.</small></div>
+      </div>
+    </div>
+  `);
+  const notePad = sec.querySelector("#s5notes");
+  let selected=[]; // freqs
+  NOTES.forEach(([name,f])=>{
+    const b=document.createElement("button"); b.className="notebtn"; b.textContent=name;
+    b.addEventListener("click",()=>{
+      const i = selected.indexOf(f);
+      if(i>=0){ selected.splice(i,1); }
+      else{
+        if(selected.length>=2) selected.shift();
+        selected.push(f);
+      }
+      refreshNotes(); render(); updateTonePitches();
+    });
+    b.dataset.f=f;
+    notePad.appendChild(b);
+  });
+  function refreshNotes(){
+    notePad.querySelectorAll(".notebtn").forEach(b=>{
+      const f = parseFloat(b.dataset.f);
+      b.classList.remove("on1","on2","onboth");
+      if(selected.length===2 && selected[0]===f && selected[1]===f) b.classList.add("onboth");
+      else if(selected[0]===f) b.classList.add("on1");
+      else if(selected[1]===f) b.classList.add("on2");
+    });
+    sec.querySelector("#s5a").textContent = selected[0]? Math.round(selected[0])+" Hz":"—";
+    sec.querySelector("#s5b").textContent = selected[1]? Math.round(selected[1])+" Hz":"—";
+  }
+  const indC=sec.querySelector("#s5individual"), combC=sec.querySelector("#s5combined"), specC=sec.querySelector("#s5spec");
+  function render(){
+    const ictx=fitCanvas(indC); clear(ictx,indC); gridLines(ictx,indC,4);
+    if(selected[0]) drawWave(ictx,indC,(t)=>Math.sin(t),{color:"#5ad1ff",cycles:3});
+    if(selected[1]) drawWave(ictx,indC,(t)=>Math.sin(t*(selected[1]/(selected[0]||selected[1]))),{color:"#ff9f5a",cycles:3});
+
+    const cctx=fitCanvas(combC); clear(cctx,combC); gridLines(cctx,combC,4);
+    if(selected.length){
+      const f0 = selected[0]||selected[1];
+      drawWave(cctx,combC,(t)=>{
+        let s=0;
+        if(selected[0]) s+=Math.sin(t*(selected[0]/f0));
+        if(selected[1]) s+=Math.sin(t*(selected[1]/f0));
+        return s/2;
+      },{color:"#c78bff",cycles:3, lw:2.8});
+    }
+
+    const sctx=fitCanvas(specC); clear(sctx,specC);
+    const w=specC.clientWidth,h=specC.clientHeight;
+    const maxF = 560;
+    sctx.strokeStyle="rgba(255,255,255,0.08)";
+    for(let f=0; f<=maxF; f+=100){
+      const x = f/maxF*w;
+      sctx.beginPath(); sctx.moveTo(x,0); sctx.lineTo(x,h-20); sctx.stroke();
+      sctx.fillStyle="#8d97bf"; sctx.font="10px sans-serif"; sctx.textAlign="center";
+      sctx.fillText(f+"Hz", x, h-6);
+    }
+    [selected[0],selected[1]].forEach((f,i)=>{
+      if(!f) return;
+      const x = f/maxF*w;
+      sctx.fillStyle = i===0?"#5ad1ff":"#ff9f5a";
+      sctx.fillRect(x-4, h-20-((h-40)), 8, (h-40));
+    });
+  }
+  render(); refreshNotes();
+
+  let tones=[];
+  function updateTonePitches(){
+    if(tones.length){ tones.forEach(t=>t.stop()); tones=[]; }
+  }
+  sec.querySelector("#s5play").addEventListener("click", async (e)=>{
+    await Audio.init(); await Audio.resume();
+    if(tones.length){ tones.forEach(t=>t.stop()); tones=[]; e.target.textContent="▶ Play chord"; e.target.classList.remove("stopping"); return; }
+    if(!selected.length) return;
+    tones = selected.map(f=>playTone({freq:f, type:"sine", gain:0.16}));
+    e.target.textContent="■ Stop"; e.target.classList.add("stopping");
+  });
+})();
+
+/* -------------------- SECTION 3: Sampling Rate & Bit Depth -------------------- */
+(function(){
+  const sec = makeSection("s3","Sampling Rate & Bit Depth","Sampling chooses when to measure; bit depth chooses which amplitude can be stored.");
+  qa(sec,{
+    q:"If the sampling rate stays the same but bit depth increases, what improves?",
+    options:["More measurements are taken each second","Each measured amplitude is stored more precisely","The signal frequency becomes higher"],
+    answerIdx:1,
+    explain:"Bit depth controls the number of allowed amplitude levels: <b>levels = 2<sup>bits</sup></b>. More levels reduce vertical rounding (quantization) error. Sampling rate controls the horizontal timing of measurements instead."
+  });
+  sec.insertAdjacentHTML("beforeend", `
+    <div class="grid2" style="flex:1;">
+      <div class="col">
+        <div class="panel" style="flex:1; display:flex; flex-direction:column; min-height:190px;">
+          <div class="legend">
+            <span><span class="sw" style="background:var(--wave1)"></span>Continuous signal</span>
+            <span><span class="sw" style="background:var(--good)"></span>Sampling instants</span>
+            <span><span class="sw" style="background:var(--accent2)"></span>Measured values</span>
+          </div>
+          <canvas id="s3sample" style="flex:1; min-height:150px;"></canvas>
+        </div>
+        <div class="panel" style="flex:1; display:flex; flex-direction:column; min-height:190px;">
+          <div class="legend">
+            <span><span class="sw" style="background:var(--wave1)"></span>Measured value</span>
+            <span><span class="sw" style="background:var(--wave2)"></span>Stored (quantized) value</span>
+          </div>
+          <canvas id="s3quant" style="flex:1; min-height:150px;"></canvas>
+        </div>
+        <div class="panel" style="flex:0.7; display:flex; flex-direction:column; min-height:135px;">
+          <div class="legend"><span><span class="sw" style="background:var(--wave3)"></span>Quantization error = stored − measured</span></div>
+          <canvas id="s3error" style="flex:1; min-height:95px;"></canvas>
+        </div>
+      </div>
+      <div class="col">
+        <div class="panel">
+          <div class="controls">
+            <div class="ctl"><label>Signal frequency f <span><span class="val" id="s3fVal">5.0</span> Hz</span></label>
+              <input type="range" id="s3f" min="1" max="20" step="0.5" value="5"></div>
+            <div class="ctl"><label>Sampling rate f<sub>s</sub> <span><span class="val" id="s3fsVal">18</span> samples/s</span></label>
+              <input type="range" id="s3fs" min="4" max="80" step="1" value="18"></div>
+            <div class="ctl"><label>Bit depth <span><span class="val" id="s3bitsVal">3</span> bits</span></label>
+              <input type="range" id="s3bits" min="2" max="12" step="1" value="3"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="readout">
+            <div class="item"><div class="k">Samples / cycle</div><div class="v" id="s3spc">3.6</div></div>
+            <div class="item"><div class="k">Amplitude levels</div><div class="v" id="s3levels">8</div></div>
+            <div class="item"><div class="k">Mean |error|</div><div class="v" id="s3mae">0.000</div></div>
+            <div class="item"><div class="k">Status</div><div class="v good" id="s3status">SATISFIED</div></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="shm-formula">sampling interval: Δt = 1/f<sub>s</sub><br>Nyquist condition: f<sub>s</sub> ≥ 2f<br>amplitude levels: L = 2<sup>bits</sup><br>error = stored value − measured value</div>
+        </div>
+        <div class="panel"><small class="hint">First lower the sampling rate: the dots spread apart horizontally and eventually violate the Nyquist limit. Then lower bit depth: the stored orange values snap to fewer horizontal levels and quantization error grows.</small></div>
+      </div>
+    </div>
+  `);
+  const sampleC=sec.querySelector("#s3sample"), quantC=sec.querySelector("#s3quant"), errorC=sec.querySelector("#s3error");
+  const fSlider=sec.querySelector("#s3f"), fsSlider=sec.querySelector("#s3fs"), bitsSlider=sec.querySelector("#s3bits");
+  const fVal=sec.querySelector("#s3fVal"), fsVal=sec.querySelector("#s3fsVal"), bitsVal=sec.querySelector("#s3bitsVal");
+  const spcEl=sec.querySelector("#s3spc"), levelsEl=sec.querySelector("#s3levels");
+  const maeEl=sec.querySelector("#s3mae"), statusEl=sec.querySelector("#s3status");
+
+  function analogSignal(t, frequency){
+    return 0.82*Math.sin(2*Math.PI*frequency*t+0.2);
+  }
+  function quantize(value, bits){
+    const levels=2**bits;
+    const index=Math.round((value+1)*(levels-1)/2);
+    return index*2/(levels-1)-1;
+  }
+  function plotBox(ctx,c){
+    const w=c.clientWidth,h=c.clientHeight;
+    const box={left:34,right:w-10,top:10,bottom:h-24};
+    box.width=Math.max(1,box.right-box.left); box.height=Math.max(1,box.bottom-box.top);
+    box.x=t=>box.left+t*box.width;
+    box.y=v=>box.top+(1-(v+1.1)/2.2)*box.height;
+    ctx.strokeStyle="rgba(255,255,255,.08)";ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(box.left,box.y(0));ctx.lineTo(box.right,box.y(0));ctx.stroke();
+    ctx.fillStyle="#8d97bf";ctx.font="10px sans-serif";ctx.textAlign="center";
+    [0,.25,.5,.75,1].forEach(t=>ctx.fillText(t.toFixed(2),box.x(t),h-7));
+    ctx.save();ctx.translate(10,(box.top+box.bottom)/2);ctx.rotate(-Math.PI/2);ctx.fillText("amplitude",0,0);ctx.restore();
+    return box;
+  }
+
+  function render(){
+    const f=parseFloat(fSlider.value), fs=parseInt(fsSlider.value,10), bits=parseInt(bitsSlider.value,10);
+    const levels=2**bits, sampleCount=Math.floor(fs)+1;
+    const times=Array.from({length:sampleCount},(_,i)=>i/fs).filter(t=>t<=1.000001);
+    const measured=times.map(t=>analogSignal(t,f));
+    const stored=measured.map(v=>quantize(v,bits));
+    const errors=stored.map((v,i)=>v-measured[i]);
+    const mae=errors.reduce((sum,e)=>sum+Math.abs(e),0)/Math.max(1,errors.length);
+    fVal.textContent=f.toFixed(1);fsVal.textContent=fs;bitsVal.textContent=bits;
+    spcEl.textContent=(fs/f).toFixed(1);levelsEl.textContent=levels.toLocaleString();maeEl.textContent=mae.toFixed(4);
+    const ok=fs>=2*f;
+    statusEl.textContent=ok?"NYQUIST OK":"ALIASING RISK";
+    statusEl.className="v "+(ok?"good":"bad");
+
+    // Sampling panel: continuous curve, stems, and measured points.
+    const sctx=fitCanvas(sampleC);clear(sctx,sampleC);const sb=plotBox(sctx,sampleC);
+    sctx.beginPath();sctx.strokeStyle="#5ad1ff";sctx.lineWidth=2.2;
+    for(let i=0;i<=1400;i++){
+      const t=i/1400,y=analogSignal(t,f);
+      if(i===0)sctx.moveTo(sb.x(t),sb.y(y));else sctx.lineTo(sb.x(t),sb.y(y));
+    }
+    sctx.stroke();
+    times.forEach((t,i)=>{
+      sctx.strokeStyle="rgba(92,242,154,.4)";sctx.lineWidth=1;
+      sctx.beginPath();sctx.moveTo(sb.x(t),sb.y(0));sctx.lineTo(sb.x(t),sb.y(measured[i]));sctx.stroke();
+      sctx.fillStyle="#ff6ec7";sctx.beginPath();sctx.arc(sb.x(t),sb.y(measured[i]),3.8,0,Math.PI*2);sctx.fill();
+    });
+
+    // Quantization panel: allowed levels, original measurements, and stored values.
+    const qctx=fitCanvas(quantC);clear(qctx,quantC);const qb=plotBox(qctx,quantC);
+    if(levels<=32){
+      qctx.strokeStyle="rgba(148,163,184,.25)";qctx.lineWidth=.7;
+      for(let i=0;i<levels;i++){
+        const level=-1+i*2/(levels-1);
+        qctx.beginPath();qctx.moveTo(qb.left,qb.y(level));qctx.lineTo(qb.right,qb.y(level));qctx.stroke();
+      }
+    }
+    qctx.strokeStyle="#ff9f5a";qctx.lineWidth=1.5;qctx.setLineDash([5,3]);qctx.beginPath();
+    times.forEach((t,i)=>{if(i===0)qctx.moveTo(qb.x(t),qb.y(stored[i]));else qctx.lineTo(qb.x(t),qb.y(stored[i]));});
+    qctx.stroke();qctx.setLineDash([]);
+    times.forEach((t,i)=>{
+      qctx.strokeStyle="#5ad1ff";qctx.lineWidth=1.5;qctx.beginPath();qctx.arc(qb.x(t),qb.y(measured[i]),4,0,Math.PI*2);qctx.stroke();
+      qctx.fillStyle="#ff9f5a";qctx.fillRect(qb.x(t)-3.5,qb.y(stored[i])-3.5,7,7);
+    });
+
+    // Keep one fixed vertical scale so students can compare error magnitude across bit depths.
+    const ectx=fitCanvas(errorC);clear(ectx,errorC);
+    const ew=errorC.clientWidth,eh=errorC.clientHeight,el=34,er=ew-10,et=8,eb=eh-22;
+    const errorRange=.55;
+    const ex=t=>el+t*(er-el),ey=e=>et+(1-(e/errorRange+1)/2)*(eb-et);
+    ectx.strokeStyle="rgba(255,255,255,.10)";ectx.beginPath();ectx.moveTo(el,ey(0));ectx.lineTo(er,ey(0));ectx.stroke();
+    ectx.strokeStyle="#c78bff";ectx.lineWidth=1.5;ectx.beginPath();
+    times.forEach((t,i)=>{if(i===0)ectx.moveTo(ex(t),ey(errors[i]));else ectx.lineTo(ex(t),ey(errors[i]));});ectx.stroke();
+    ectx.fillStyle="#c78bff";times.forEach((t,i)=>{ectx.beginPath();ectx.arc(ex(t),ey(errors[i]),2.6,0,Math.PI*2);ectx.fill();});
+    ectx.fillStyle="#8d97bf";ectx.font="10px sans-serif";ectx.textAlign="left";
+    ectx.fillText("+"+errorRange.toFixed(2),2,et+5);ectx.fillText("−"+errorRange.toFixed(2),2,eb);
+    ectx.textAlign="center";[0,.25,.5,.75,1].forEach(t=>ectx.fillText(t.toFixed(2),ex(t),eh-6));
+  }
+  [fSlider,fsSlider,bitsSlider].forEach(s=>s.addEventListener("input",render));
+  render();
+  sec._render3 = render;
+  [sampleC,quantC,errorC].forEach(c=>new ResizeObserver(render).observe(c));
+})();
+
+/* -------------------- SECTION 6: Sampling & Nyquist -------------------- */
+(function(){
+  const sec = makeSection("s6","Sampling & Nyquist","How many dots per wiggle do you need to capture a wave faithfully?");
+  qa(sec,{
+    q:"To perfectly capture a signal that wiggles at 500 Hz, what is the minimum sampling rate you need?",
+    options:["500 samples/sec","750 samples/sec","1000 samples/sec (double the frequency)"],
+    answerIdx:2,
+    explain:"The <b>Nyquist–Shannon theorem</b>: you must sample at least <b>twice</b> the highest frequency present, f<sub>s</sub> ≥ 2f<sub>max</sub>. For 500 Hz that means at least 1000 samples/sec — otherwise information is lost and the signal aliases."
+  });
+  sec.insertAdjacentHTML("beforeend", `
+    <div class="grid2" style="flex:1;">
+      <div class="col" style="flex:1;">
+        <div class="panel" style="flex:1; display:flex; flex-direction:column;">
+          <div class="legend">
+            <span><span class="sw" style="background:var(--wave1)"></span>Continuous signal</span>
+            <span><span class="sw" style="background:var(--accent2)"></span>Sample points</span>
+          </div>
+          <canvas id="s6wave" style="flex:1; min-height:280px;"></canvas>
+        </div>
+      </div>
+      <div class="col">
+        <div class="panel">
+          <div class="controls">
+            <div class="ctl"><label>Signal frequency f <span class="val" id="s6fVal">100</span> Hz</label>
+              <input type="range" id="s6f" min="20" max="400" step="1" value="100"></div>
+            <div class="ctl"><label>Sampling rate f<sub>s</sub> <span class="val" id="s6fsVal">800</span> Hz</label>
+              <input type="range" id="s6fs" min="40" max="1600" step="10" value="800"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="readout">
+            <div class="item"><div class="k">Samples / cycle</div><div class="v" id="s6spc">8.0</div></div>
+            <div class="item"><div class="k">2 × f</div><div class="v" id="s6nyq">200 Hz</div></div>
+            <div class="item"><div class="k">Status</div><div class="v good" id="s6status">SATISFIED</div></div>
+          </div>
+        </div>
+        <div class="panel"><small class="hint">Drag f<sub>s</sub> down toward — and below — 2f. Watch samples/cycle fall below 2 and the status flip. That threshold is the Nyquist limit.</small></div>
+      </div>
+    </div>
+  `);
+  const waveC = sec.querySelector("#s6wave");
+  const fSlider = sec.querySelector("#s6f"), fsSlider = sec.querySelector("#s6fs");
+  const fVal=sec.querySelector("#s6fVal"), fsVal=sec.querySelector("#s6fsVal");
+  const spcEl=sec.querySelector("#s6spc"), nyqEl=sec.querySelector("#s6nyq"), statusEl=sec.querySelector("#s6status");
+
+  function render(){
+    const f = parseFloat(fSlider.value), fs = parseFloat(fsSlider.value);
+    fVal.textContent=f; fsVal.textContent=fs;
+    const spc = fs/f;
+    spcEl.textContent = spc.toFixed(1);
+    nyqEl.textContent = (2*f)+" Hz";
+    const ok = fs >= 2*f;
+    statusEl.textContent = ok? "SATISFIED":"VIOLATED";
+    statusEl.className = "v "+(ok?"good":"bad");
+
+    const ctx = fitCanvas(waveC); clear(ctx,waveC); gridLines(ctx,waveC,4);
+    const w=waveC.clientWidth,h=waveC.clientHeight,mid=h/2,amp=h*0.38;
+    const durationCycles = 6;
+    const T = durationCycles/f;
+    ctx.beginPath(); ctx.strokeStyle="#5ad1ff"; ctx.lineWidth=2.2;
+    const steps=1000;
+    for(let i=0;i<=steps;i++){
+      const t = i/steps*T;
+      const y = mid - Math.sin(2*Math.PI*f*t)*amp;
+      const x = i/steps*w;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+    const dt = 1/fs;
+    ctx.fillStyle="#ff6ec7";
+    let n=0;
+    const pts=[];
+    while(n*dt <= T){
+      const t=n*dt;
+      const y = mid - Math.sin(2*Math.PI*f*t)*amp;
+      const x = t/T*w;
+      pts.push([x,y]);
+      ctx.beginPath(); ctx.arc(x,y,5,0,7); ctx.fill();
+      n++;
+    }
+    if(pts.length>1){
+      ctx.beginPath(); ctx.strokeStyle="rgba(255,110,199,0.55)"; ctx.lineWidth=1.4; ctx.setLineDash([4,3]);
+      pts.forEach(([x,y],i)=>{ if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+  [fSlider,fsSlider].forEach(s=>s.addEventListener("input",render));
+  render();
+  sec._render6 = render;
+  new ResizeObserver(render).observe(waveC);
+})();
+
+/* -------------------- SECTION 7: Aliasing -------------------- */
+(function(){
+  const sec = makeSection("s7","Aliasing","Undersample a wave and it disguises itself as a slower, fake frequency.");
+  qa(sec,{
+    q:"A 700 Hz tone is sampled at 1000 Hz (below the 1400 Hz Nyquist requirement). What frequency will the reconstructed signal APPEAR to be?",
+    options:["700 Hz — sampling rate doesn't matter","1000 Hz, matching the sample rate","300 Hz — a lower 'alias' frequency"],
+    answerIdx:2,
+    explain:"Undersampling folds the true frequency back into the range below f<sub>s</sub>/2. Here f<sub>alias</sub> = |f − f<sub>s</sub>| = |700−1000| = <b>300 Hz</b>. The reconstructed wave genuinely looks and sounds like a 300 Hz tone — the higher-frequency information is unrecoverably lost."
+  });
+  sec.insertAdjacentHTML("beforeend", `
+    <div class="grid2" style="flex:1;">
+      <div class="col" style="flex:1;">
+        <div class="panel" style="flex:1; display:flex; flex-direction:column;">
+          <div class="legend">
+            <span><span class="sw" style="background:var(--wave1)"></span>True signal</span>
+            <span><span class="sw" style="background:var(--accent2)"></span>Samples</span>
+            <span><span class="sw" style="background:var(--wave3)"></span>Apparent (aliased) signal</span>
+          </div>
+          <canvas id="s7wave" style="flex:1; min-height:220px;"></canvas>
+        </div>
+        <div class="panel" style="flex:0 0 120px; display:flex; flex-direction:column;">
+          <div class="legend">Frequency folding into [0, f<sub>s</sub>/2]</div>
+          <canvas id="s7fold" style="flex:1;"></canvas>
+        </div>
+      </div>
+      <div class="col">
+        <div class="panel">
+          <div class="controls">
+            <div class="ctl"><label>Signal frequency f <span class="val" id="s7fVal">700</span> Hz</label>
+              <input type="range" id="s7f" min="20" max="1400" step="10" value="700"></div>
+            <div class="ctl"><label>Sampling rate f<sub>s</sub> <span class="val" id="s7fsVal">1000</span> Hz</label>
+              <input type="range" id="s7fs" min="100" max="2000" step="10" value="1000"></div>
+            <button class="pill" id="s7preset">Load classic example (700 / 1000)</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="readout">
+            <div class="item"><div class="k">Nyquist limit f<sub>s</sub>/2</div><div class="v" id="s7nyq">500 Hz</div></div>
+            <div class="item"><div class="k">Alias frequency</div><div class="v" id="s7alias">300 Hz</div></div>
+            <div class="item"><div class="k">Status</div><div class="v bad" id="s7status">ALIASING</div></div>
+          </div>
+          <button class="playbtn" id="s7play" style="margin-top:10px;">▶ Hear true vs. alias</button>
+        </div>
+        <div class="panel"><small class="hint">Formula: fold f into [0, f<sub>s</sub>/2] by reflecting repeatedly off 0 and f<sub>s</sub>/2. That folded value is what you actually perceive.</small></div>
+      </div>
+    </div>
+  `);
+  const waveC=sec.querySelector("#s7wave"), foldC=sec.querySelector("#s7fold");
+  const fSlider=sec.querySelector("#s7f"), fsSlider=sec.querySelector("#s7fs");
+  const fVal=sec.querySelector("#s7fVal"), fsVal=sec.querySelector("#s7fsVal");
+  const nyqEl=sec.querySelector("#s7nyq"), aliasEl=sec.querySelector("#s7alias"), statusEl=sec.querySelector("#s7status");
+
+  function aliasFreq(f, fs){
+    const nyq = fs/2;
+    let m = f % fs; if(m<0) m+=fs;
+    if(m > nyq) m = fs - m;
+    return m;
+  }
+  function render(){
+    const f=parseFloat(fSlider.value), fs=parseFloat(fsSlider.value);
+    fVal.textContent=f; fsVal.textContent=fs;
+    const nyq = fs/2;
+    nyqEl.textContent = nyq+" Hz";
+    const alias = aliasFreq(f,fs);
+    aliasEl.textContent = alias.toFixed(0)+" Hz";
+    const aliasing = f>nyq;
+    statusEl.textContent = aliasing? "ALIASING":"CLEAN";
+    statusEl.className = "v "+(aliasing?"bad":"good");
+
+    const ctx=fitCanvas(waveC); clear(ctx,waveC); gridLines(ctx,waveC,4);
+    const w=waveC.clientWidth,h=waveC.clientHeight,mid=h/2,amp=h*0.38;
+    const T = 0.02; // 20ms window
+    const steps=1400;
+    ctx.beginPath(); ctx.strokeStyle="#5ad1ff"; ctx.lineWidth=2;
+    for(let i=0;i<=steps;i++){
+      const t=i/steps*T; const x=i/steps*w;
+      const y=mid-Math.sin(2*Math.PI*f*t)*amp;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+    // apparent/reconstructed signal at alias frequency (phase-matched sign)
+    const sign = aliasing ? -1 : 1; // aliased image is typically frequency-flipped
+    ctx.beginPath(); ctx.strokeStyle="#c78bff"; ctx.lineWidth=2.6; ctx.setLineDash([]);
+    for(let i=0;i<=steps;i++){
+      const t=i/steps*T; const x=i/steps*w;
+      const y=mid-Math.sin(sign*2*Math.PI*alias*t)*amp;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+    // sample points
+    const dt=1/fs; ctx.fillStyle="#ff6ec7";
+    let n=0;
+    while(n*dt<=T){
+      const t=n*dt; const x=t/T*w; const y=mid-Math.sin(2*Math.PI*f*t)*amp;
+      ctx.beginPath(); ctx.arc(x,y,5.5,0,7); ctx.fill();
+      n++;
+    }
+
+    // folding diagram
+    const fctx=fitCanvas(foldC); clear(fctx,foldC);
+    const fw=foldC.clientWidth, fh=foldC.clientHeight, mMax = Math.max(fs, f, 1000)*1.05;
+    const baseY = fh*0.65, axisW = fw-40;
+    fctx.strokeStyle="#2a3357"; fctx.lineWidth=2;
+    fctx.beginPath(); fctx.moveTo(20,baseY); fctx.lineTo(20+axisW,baseY); fctx.stroke();
+    function xOf(v){ return 20 + (v/mMax)*axisW; }
+    // nyquist marker
+    fctx.strokeStyle="#ffcb5c"; fctx.beginPath(); fctx.moveTo(xOf(nyq),baseY-26); fctx.lineTo(xOf(nyq),baseY+8); fctx.stroke();
+    fctx.fillStyle="#ffcb5c"; fctx.font="11px sans-serif"; fctx.textAlign="center"; fctx.fillText("Nyquist "+nyq+"Hz", xOf(nyq), baseY-30);
+    // original f marker
+    fctx.fillStyle="#5ad1ff";
+    fctx.beginPath(); fctx.arc(xOf(f), baseY, 6, 0, 7); fctx.fill();
+    fctx.fillText("f = "+f+"Hz", xOf(f), baseY+22);
+    // alias marker
+    fctx.fillStyle="#c78bff";
+    fctx.beginPath(); fctx.arc(xOf(alias), baseY, 6, 0, 7); fctx.fill();
+    fctx.fillText("alias = "+alias.toFixed(0)+"Hz", xOf(alias), baseY-14);
+    if(aliasing){
+      fctx.strokeStyle="rgba(199,139,255,0.6)"; fctx.setLineDash([5,4]); fctx.lineWidth=1.6;
+      fctx.beginPath(); fctx.moveTo(xOf(f),baseY); fctx.quadraticCurveTo((xOf(f)+xOf(alias))/2, baseY-45, xOf(alias), baseY); fctx.stroke();
+      fctx.setLineDash([]);
+    }
+  }
+  [fSlider,fsSlider].forEach(s=>s.addEventListener("input",render));
+  sec.querySelector("#s7preset").addEventListener("click",()=>{ fSlider.value=700; fsSlider.value=1000; render(); });
+  render();
+  new ResizeObserver(render).observe(waveC);
+
+  let tones=[];
+  sec.querySelector("#s7play").addEventListener("click", async (e)=>{
+    await Audio.init(); await Audio.resume();
+    if(tones.length){ tones.forEach(t=>t.stop()); tones=[]; e.target.textContent="▶ Hear true vs. alias"; e.target.classList.remove("stopping"); return; }
+    const f=parseFloat(fSlider.value), fs=parseFloat(fsSlider.value);
+    const alias = aliasFreq(f,fs);
+    const t1 = playTone({freq:Math.min(f,4000), type:"sine", gain:0.18, duration:1.0});
+    setTimeout(()=>{ tones.push(playTone({freq:alias, type:"sine", gain:0.18, duration:1.0})); }, 1150);
+    tones=[t1];
+    e.target.textContent="■ Stop"; e.target.classList.add("stopping");
+    setTimeout(()=>{ e.target.textContent="▶ Hear true vs. alias"; e.target.classList.remove("stopping"); tones=[]; }, 2300);
+  });
+})();
+
+/* -------------------- SECTION 8: Wagon Wheel -------------------- */
+(function(){
+  const sec = makeSection("s8","Wagon-Wheel Effect","A spinning wheel filmed at a fixed frame rate — visual aliasing you can watch happen.");
+  qa(sec,{
+    q:"As a wheel spins faster and faster under a strobing camera, what will eventually seem to happen to its motion?",
+    options:["It just looks continuously faster forever","It can appear to slow down, freeze, or even spin backwards","The wheel disappears"],
+    answerIdx:1,
+    explain:"The camera only captures one frame every 1/(frame rate) seconds — it's <b>sampling</b> the wheel's rotation. Once the wheel turns more than half a revolution between frames, the brain sees the shortest apparent rotation, which can look like a slower forward turn, a freeze, or backward motion — exactly like frequency aliasing."
+  });
+  sec.insertAdjacentHTML("beforeend", `
+    <div class="grid2" style="flex:1;">
+      <div class="col" style="flex:1;">
+        <div class="panel" style="flex:1; display:flex; align-items:center; justify-content:center;">
+          <canvas id="s8wheel" style="width:min(60vh,100%); height:min(60vh,52vh); aspect-ratio:1/1; max-width:520px;"></canvas>
+        </div>
+      </div>
+      <div class="col">
+        <div class="panel">
+          <div class="controls">
+            <div class="ctl"><label>True rotation speed <span class="val" id="s8rpsVal">2.0</span> rev/s</label>
+              <input type="range" id="s8rps" min="0" max="30" step="0.1" value="2"></div>
+            <div class="ctl"><label>Sampling / frame rate <span class="val" id="s8fpsVal">10</span> fps</label>
+              <input type="range" id="s8fps" min="2" max="60" step="1" value="10"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="readout">
+            <div class="item"><div class="k">Apparent speed</div><div class="v" id="s8app">— rev/s</div></div>
+            <div class="item"><div class="k">Apparent direction</div><div class="v" id="s8dir">forward</div></div>
+          </div>
+        </div>
+        <div class="panel"><small class="hint">This is exactly the aliasing from Section 5, mapped onto rotation instead of a sound wave: frame rate = sampling rate, revolutions/sec = signal frequency.</small></div>
+      </div>
+    </div>
+  `);
+  const wheelC = sec.querySelector("#s8wheel");
+  const rpsSlider = sec.querySelector("#s8rps"), fpsSlider = sec.querySelector("#s8fps");
+  const rpsVal = sec.querySelector("#s8rpsVal"), fpsVal = sec.querySelector("#s8fpsVal");
+  const appEl = sec.querySelector("#s8app"), dirEl = sec.querySelector("#s8dir");
+
+  let trueAngle = 0; // radians, continuous
+  let displayAngle = 0; // what we render (stepped at fps)
+  let lastFrameTime = performance.now();
+  let lastSampleTime = performance.now();
+
+  function drawWheel(angle){
+    const ctx = fitCanvas(wheelC);
+    const w=wheelC.clientWidth,h=wheelC.clientHeight;
+    ctx.fillStyle="#070b16"; ctx.fillRect(0,0,w,h);
+    const cx=w/2, cy=h/2, r=Math.min(w,h)*0.42;
+    ctx.strokeStyle="#2a3357"; ctx.lineWidth=6;
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.stroke();
+    ctx.strokeStyle="#5ad1ff"; ctx.lineWidth=5; ctx.lineCap="round";
+    const spokes=8;
+    for(let i=0;i<spokes;i++){
+      const a = angle + i*(2*Math.PI/spokes);
+      ctx.beginPath();
+      ctx.moveTo(cx,cy);
+      ctx.lineTo(cx+Math.cos(a)*r, cy+Math.sin(a)*r);
+      ctx.stroke();
+    }
+    ctx.fillStyle="#ff6ec7";
+    ctx.beginPath(); ctx.arc(cx,cy,10,0,7); ctx.fill();
+    // reference mark for visible "apparent" rotation
+    ctx.fillStyle="#ffcb5c";
+    ctx.beginPath(); ctx.arc(cx+Math.cos(angle)*r, cy+Math.sin(angle)*r, 9, 0, 7); ctx.fill();
+  }
+
+  let prevSampleAngle = 0;
+  function tick(now){
+    const dt = (now-lastFrameTime)/1000; lastFrameTime = now;
+    const rps = parseFloat(rpsSlider.value);
+    trueAngle += rps*2*Math.PI*dt;
+
+    const fps = parseFloat(fpsSlider.value);
+    const frameInterval = 1000/fps;
+    if(now - lastSampleTime >= frameInterval){
+      const steps = Math.max(1, Math.round((now-lastSampleTime)/frameInterval));
+      lastSampleTime += steps*frameInterval;
+      let delta = trueAngle - prevSampleAngle;
+      // wrap delta into [-PI, PI] -> apparent rotation per sample (aliasing)
+      delta = ((delta+Math.PI) % (2*Math.PI) + 2*Math.PI) % (2*Math.PI) - Math.PI;
+      displayAngle += delta;
+      prevSampleAngle = trueAngle;
+
+      const apparentRevPerSec = (delta/(2*Math.PI)) * fps;
+      appEl.textContent = Math.abs(apparentRevPerSec).toFixed(2)+" rev/s";
+      dirEl.textContent = apparentRevPerSec>0.01? "forward" : apparentRevPerSec<-0.01? "backward" : "frozen";
+      dirEl.className = "v "+(apparentRevPerSec<-0.01?"bad": apparentRevPerSec>0.01? "good":"");
+    }
+    if(activeSection==="s8") drawWheel(displayAngle);
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+  rpsSlider.addEventListener("input",()=>rpsVal.textContent=parseFloat(rpsSlider.value).toFixed(1));
+  fpsSlider.addEventListener("input",()=>fpsVal.textContent=fpsSlider.value);
+})();
+
+/* ====================================================================
+   SECTION-SHOWN HOOKS (resize canvases etc.)
+   ==================================================================== */
+function onSectionShown(id){
+  requestAnimationFrame(()=>{
+    document.querySelectorAll(`#${id} canvas`).forEach(c=>fitCanvas(c));
+    if(id==="s4"){ const s=document.getElementById("s4wave"); }
+    if(id==="s1" && Audio.ready && !Audio.micAnalyser){
+      showStoppedMicDisplay(audioStatusText.textContent.includes("unavailable")?"Microphone unavailable":"Microphone stopped");
+    }
+  });
+}
+window.addEventListener("resize", ()=>{
+  document.querySelectorAll(".section.active canvas").forEach(c=>fitCanvas(c));
+});
+
+/* ====================================================================
+   MIC PERMISSION GATE (initial overlay)
+   ==================================================================== */
+const gate = document.createElement("div");
+gate.id="micGate";
+gate.innerHTML = `
+  <h3>🎧 Welcome to Sound Lab</h3>
+  <p>This interactive session uses your speakers to play tones and (optionally) your microphone to visualize live sound.
+  Click <b>Start Sound Lab</b> above — your browser will ask permission to use the microphone. You can still explore every module without granting mic access.</p>
+`;
+stage.appendChild(gate);
+
+/* boot to section 1 view even before start (mic canvas just stays idle) */
+showSection("s1");
+</script>
+</body>
+</html>
