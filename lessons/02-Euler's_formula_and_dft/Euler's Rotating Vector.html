@@ -356,7 +356,12 @@
     ctx.clearRect(0,0,w,h);
 
     var cx = w/2, cy = h/2;
-    var R = Math.min(w,h) * 0.36;
+    // Use one fixed scale that includes the slider's maximum amplitude.
+    // This keeps the A = 1.5 circle, vector tip and arrowhead inside the
+    // complex-plane canvas with comfortable padding on every side.
+    var outerPadding = 28*dims.dpr;
+    var maxDisplayAmplitude = Math.max(1, parseFloat(ampSlider.max) || 1.5);
+    var R = (Math.min(w,h)/2 - outerPadding) / maxDisplayAmplitude;
 
     var ink = cssVar('--ink');
     var muted = cssVar('--muted');

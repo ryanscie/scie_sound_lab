@@ -537,7 +537,12 @@
     const pxPerSec = 55; // horizontal scale
     const window = (W - marginL - marginR) / pxPerSec; // seconds visible
     const t0 = Math.max(0, state.t - window);
-    const baseAmpPx = (H/2 - 40);
+    // Keep one fixed vertical scale so amplitudes remain visually comparable.
+    // Challenge mode can choose A = 1.4, so show a slightly wider ±1.6 range
+    // to keep the peaks comfortably inside the canvas instead of clipping.
+    const verticalPadding = 24;
+    const visibleAmplitudeRange = 1.6;
+    const baseAmpPx = (H/2 - verticalPadding) / visibleAmplitudeRange;
 
     // grid
     wctx.strokeStyle = 'rgba(255,255,255,0.04)';
