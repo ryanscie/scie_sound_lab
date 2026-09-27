@@ -1,0 +1,1028 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Hearing Frequencies</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#0a0e13;
+    --panel:#111820;
+    --panel-2:#161f2a;
+    --border:#26323f;
+    --border-soft:#1b2530;
+    --ink:#e9eef4;
+    --muted:#8b98a7;
+    --muted-2:#5d6b7a;
+    --accent:#57e0c9;
+    --accent-ink:#08312b;
+    --accent-dim:rgba(87,224,201,.14);
+    --warn:#f2a154;
+    --warn-dim:rgba(242,161,84,.16);
+    --danger:#e2574c;
+    --grid:#1d2733;
+    --font-display:'Space Grotesk',system-ui,sans-serif;
+    --font-body:'IBM Plex Sans',system-ui,sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    margin:0;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{
+    max-width:920px;
+    margin:0 auto;
+    padding:0 20px 80px;
+  }
+  a{color:var(--accent);}
+  h1,h2,h3{font-family:var(--font-display);font-weight:700;text-wrap:balance;margin:0;}
+  code,.mono{font-family:var(--font-mono);}
+
+  .topbar{
+    position:sticky;
+    top:env(safe-area-inset-top,0px);
+    z-index:20;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px 20px;
+    background:rgba(10,14,19,.88);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border-soft);
+    margin:0 calc(-1 * max(20px, (100% - 920px)/2 + 20px));
+    padding-left:max(20px, calc((100% - 920px)/2 + 20px));
+    padding-right:max(20px, calc((100% - 920px)/2 + 20px));
+  }
+  .brand{font-family:var(--font-display);font-weight:700;font-size:15px;letter-spacing:.02em;white-space:nowrap;}
+  .brand span{color:var(--accent);}
+  .seclinks{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;}
+  .seclinks::-webkit-scrollbar{display:none;}
+  .seclinks a{
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    color:var(--muted);
+    text-decoration:none;
+    padding:6px 10px;
+    border-radius:20px;
+    white-space:nowrap;
+    border:1px solid transparent;
+  }
+  .seclinks a:hover{color:var(--ink);border-color:var(--border);}
+
+  .hero{padding:44px 0 28px;}
+  .hero h1{font-size:clamp(26px,4.4vw,38px);line-height:1.15;max-width:15ch;}
+  .hero .lede{color:var(--muted);font-size:15.5px;line-height:1.65;max-width:56ch;margin-top:14px;}
+  .hero .lede strong{color:var(--ink);font-weight:600;}
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border-soft);
+    border-radius:14px;
+    padding:26px 24px 28px;
+    margin-top:20px;
+    scroll-margin-top:70px;
+  }
+  .panel h2{
+    display:flex;align-items:center;gap:10px;
+    font-size:19px;
+  }
+  .tag{
+    font-family:var(--font-mono);
+    font-size:12px;
+    color:var(--accent);
+    background:var(--accent-dim);
+    border-radius:6px;
+    padding:3px 7px;
+  }
+  .panel-sub{color:var(--muted);font-size:14px;line-height:1.6;margin:8px 0 20px;max-width:64ch;}
+
+  .row{display:flex;gap:18px;flex-wrap:wrap;}
+  .col{flex:1 1 260px;min-width:0;}
+
+  .card{
+    background:var(--panel-2);
+    border:1px solid var(--border-soft);
+    border-radius:10px;
+    padding:14px 16px;
+  }
+  .plot{width:100%;height:190px;display:block;border-radius:8px;background:#080b0f;}
+  .plot-square{height:260px;}
+  .plot-label{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--muted-2);
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    margin:0 0 8px;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+
+  /* buttons & inputs */
+  button{
+    font-family:var(--font-body);
+    font-weight:600;
+    font-size:13px;
+    border-radius:8px;
+    border:1px solid var(--border);
+    background:var(--panel-2);
+    color:var(--ink);
+    padding:9px 14px;
+    cursor:pointer;
+  }
+  button:hover{border-color:var(--muted-2);}
+  button:active{transform:translateY(1px);}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+  button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);}
+  button.primary:hover{background:#6be8d3;}
+  button.ghost{background:transparent;}
+  button:focus-visible, input:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+  .btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+
+  input[type=number], input[type=text]{
+    font-family:var(--font-mono);
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    color:var(--ink);
+    border-radius:8px;
+    padding:8px 10px;
+    font-size:13px;
+    width:100%;
+  }
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;
+    width:100%;height:4px;border-radius:3px;
+    background:var(--border);outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;
+    width:15px;height:15px;border-radius:50%;
+    background:var(--accent);cursor:pointer;
+    border:2px solid #08312b;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:13px;height:13px;border-radius:50%;
+    background:var(--accent);cursor:pointer;border:2px solid #08312b;
+  }
+
+  /* component chips */
+  .chiplist{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+  .chip{
+    display:grid;
+    grid-template-columns:auto 78px 1fr auto;
+    align-items:center;
+    gap:12px;
+    background:var(--panel-2);
+    border:1px solid var(--border-soft);
+    border-radius:9px;
+    padding:8px 12px;
+  }
+  .chip-toggle{
+    width:26px;height:26px;padding:0;border-radius:50%;
+    font-size:13px;line-height:1;
+    background:var(--border);border-color:var(--border);color:var(--muted);
+  }
+  .chip-toggle.on{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);}
+  .chip-freq{font-family:var(--font-mono);font-size:13px;color:var(--ink);white-space:nowrap;}
+  .chip-freq.hidden-val{color:var(--muted-2);letter-spacing:.1em;}
+  .chip-amp{margin:0;}
+  .chip-remove{
+    width:26px;height:26px;padding:0;border-radius:6px;
+    color:var(--muted);font-size:12px;
+  }
+  .addrow{
+    display:grid;grid-template-columns:1fr 100px auto;gap:8px;align-items:end;
+  }
+  .addrow label{display:block;font-family:var(--font-mono);font-size:10.5px;color:var(--muted-2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
+
+  /* meter */
+  .meter-wrap{margin-top:14px;}
+  .meter-track{
+    height:16px;border-radius:8px;background:var(--panel-2);
+    border:1px solid var(--border-soft);overflow:hidden;position:relative;
+  }
+  .meter-fill{
+    height:100%;border-radius:8px 0 0 8px;
+    background:linear-gradient(90deg, var(--muted-2), var(--accent));
+    width:0%;transition:width .12s ease-out, background .2s;
+  }
+  .meter-readout{
+    display:flex;justify-content:space-between;align-items:baseline;
+    margin-top:8px;font-family:var(--font-mono);font-size:12px;color:var(--muted);
+  }
+  .meter-caption{
+    margin-top:10px;font-size:13.5px;line-height:1.55;color:var(--ink);
+    padding:10px 12px;border-radius:8px;background:var(--panel-2);
+    border-left:3px solid var(--muted-2);
+    transition:border-color .2s;
+  }
+  .meter-caption.strong{border-left-color:var(--warn);}
+  .meter-caption.weak{border-left-color:var(--muted-2);}
+
+  .freq-readout{
+    font-family:var(--font-mono);font-size:26px;font-weight:600;color:var(--accent);
+  }
+  .slider-block{display:flex;align-items:center;gap:16px;margin:6px 0 4px;flex-wrap:wrap;}
+
+  /* math section */
+  .eq-block{
+    background:var(--panel-2);border:1px solid var(--border-soft);border-radius:10px;
+    padding:20px;text-align:center;margin:16px 0;
+    overflow-x:auto;
+  }
+  .eq-block .big{font-family:var(--font-mono);font-size:clamp(16px,3.6vw,22px);color:var(--accent);white-space:nowrap;}
+  .eq-block .small{font-family:var(--font-mono);font-size:13px;color:var(--muted);margin-top:8px;}
+  .eq-legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:16px;font-size:13px;color:var(--muted);}
+  .eq-legend b{color:var(--ink);font-family:var(--font-mono);}
+
+  .challenge-banner{
+    background:var(--warn-dim);border:1px solid rgba(242,161,84,.35);
+    border-radius:10px;padding:16px;margin-bottom:18px;
+  }
+  .challenge-banner p{margin:0 0 12px;font-size:14px;line-height:1.55;color:var(--ink);}
+  .guess-row{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px;}
+  #guessResult{margin:10px 0 0;font-size:13.5px;color:var(--muted);min-height:1.4em;}
+  #guessResult.good{color:var(--accent);}
+  #guessResult.bad{color:var(--danger);}
+
+  footer{margin-top:36px;color:var(--muted-2);font-size:12.5px;text-align:center;}
+
+  @media (max-width:640px){
+    .chip{grid-template-columns:auto 66px 1fr auto;gap:8px;}
+    .addrow{grid-template-columns:1fr;}
+    .guess-row{grid-template-columns:1fr;}
+  }
+</style>
+
+<div class="page">
+  <div class="topbar">
+    <div class="brand">◐ FREQ<span>LAB</span></div>
+    <nav class="seclinks">
+      <a href="#build">Build</a><a href="#compare">Compare</a><a href="#scan">Scan</a><a href="#math">Math</a><a href="#challenge">Challenge</a>
+    </nav>
+  </div>
+
+  <section class="hero">
+    <h1>How can a computer tell whether a particular frequency is inside a sound?</h1>
+    <p class="lede">A microphone only ever hands a computer a wiggly line of numbers — pressure over time. There's no label saying "this is a 300&nbsp;Hz tone." To find out, the computer tries a trick: it <strong>tests one frequency at a time</strong>, spins the signal backwards at that rate, and checks whether the result piles up in one direction or cancels itself out. That's the whole idea behind the Discrete Fourier Transform. Build a signal below and watch the test happen.</p>
+  </section>
+
+  <!-- 01 BUILD -->
+  <section id="build" class="panel">
+    <h2><span class="tag">01</span> Build an unknown signal</h2>
+    <p class="panel-sub">A real sound is just several sine waves added together. Toggle tones on and off, drag their loudness, or add your own — the waveform and every tool below update instantly.</p>
+
+    <div class="btnrow">
+      <button class="primary" id="presetSimple">200 + 300 + 500 Hz</button>
+      <button id="presetChord">C4 + E4 + G4 chord</button>
+      <button id="challengeToggle">🎲 Challenge mode</button>
+    </div>
+
+    <div id="challengeBanner" class="challenge-banner" hidden>
+      <p>A mystery signal is hiding <strong id="secretCount">2</strong> pure tones. Use <strong>Compare</strong> and <strong>Scan</strong> below to hunt for them — no peeking at the chips.</p>
+      <div class="btnrow" style="margin-bottom:0;">
+        <button id="playChallenge">▶ Play the sound</button>
+        <button id="newChallenge">↻ New mystery</button>
+        <button id="revealChallenge">👁 Reveal answer</button>
+      </div>
+      <div class="guess-row">
+        <input id="guessInput" type="text" placeholder="Your guess in Hz, comma-separated — e.g. 200, 350, 500">
+        <button id="checkGuess">Check</button>
+      </div>
+      <p id="guessResult"></p>
+    </div>
+
+    <div id="chipList" class="chiplist"></div>
+
+    <div class="addrow">
+      <div>
+        <label for="addFreq">Add frequency (Hz)</label>
+        <input type="number" id="addFreq" min="20" max="780" step="1" value="400">
+      </div>
+      <div>
+        <label for="addAmp">Loudness</label>
+        <input type="range" id="addAmp" min="0.2" max="1" step="0.05" value="0.8">
+      </div>
+      <button id="addBtn">+ Add tone</button>
+    </div>
+
+    <div class="card" style="margin-top:18px;">
+      <p class="plot-label"><span>Time domain — the unknown waveform</span><button id="playSignal" class="ghost" style="padding:4px 10px;">▶ Play sound</button></p>
+      <canvas class="plot" id="waveCanvas"></canvas>
+    </div>
+  </section>
+
+  <!-- 02 COMPARE -->
+  <section id="compare" class="panel">
+    <h2><span class="tag">02</span> Test a frequency</h2>
+    <p class="panel-sub">Pick a test frequency. The computer spins every sample of the signal backwards at that rate — that's the reference wave. If the signal truly contains that frequency, the spun samples pile up on one side of center. Otherwise they scatter evenly and cancel to nearly zero.</p>
+
+    <div class="slider-block">
+      <span class="freq-readout mono" id="testFreqLabel">300 Hz</span>
+      <input type="range" id="testFreqSlider" min="0" max="800" step="1" value="300" style="flex:1;min-width:180px;">
+    </div>
+
+    <div class="row" style="margin-top:16px;">
+      <div class="col">
+        <div class="card">
+          <p class="plot-label"><span>Signal vs. reference wave</span></p>
+          <canvas class="plot" id="refCanvas"></canvas>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card">
+          <p class="plot-label"><span>Spun samples (complex plane)</span></p>
+          <canvas class="plot plot-square" id="phasorCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="meter-wrap">
+      <div class="meter-track"><div class="meter-fill" id="meterFill"></div></div>
+      <div class="meter-readout"><span>match strength</span><span id="meterValue" class="mono">0.00</span></div>
+      <p class="meter-caption weak" id="meterCaption">Drag the slider — the computer is asking "how much of this frequency is present?"</p>
+    </div>
+  </section>
+
+  <!-- 03 SCAN -->
+  <section id="scan" class="panel">
+    <h2><span class="tag">03</span> Scan every frequency</h2>
+    <p class="panel-sub">Instead of testing one frequency by hand, run the same test across the whole range. Wherever the response spikes, a real component lives there — that spike pattern is the frequency spectrum.</p>
+
+    <div class="btnrow">
+      <button class="primary" id="scanBtn">▶ Scan 0–800 Hz</button>
+    </div>
+
+    <div class="card">
+      <p class="plot-label"><span>Spectrum — frequency (Hz) vs. magnitude</span></p>
+      <canvas class="plot" id="spectrumCanvas" style="height:220px;"></canvas>
+    </div>
+  </section>
+
+  <!-- 04 MATH -->
+  <section id="math" class="panel">
+    <h2><span class="tag">04</span> The equation behind it</h2>
+    <p class="panel-sub">Everything above is just this formula, run once per test frequency:</p>
+
+    <div class="eq-block">
+      <div class="big">X[k] &nbsp;=&nbsp; Σ<sub style="font-size:11px;">n=0</sub><sup style="font-size:11px;">N−1</sup>&nbsp; x[n] · e<sup>−i2πkn/N</sup></div>
+      <div class="small">x[n] = the n-th sample &nbsp;·&nbsp; N = 64 samples in our window &nbsp;·&nbsp; k = which frequency bin we're testing (bin k ≈ k × 50 Hz here)</div>
+    </div>
+
+    <p class="panel-sub" style="margin-bottom:8px;">The term <code>e<sup>−i2πkn/N</sup></code> is where the "spinning" comes from. Euler's formula turns that exponential into something you can actually plot:</p>
+
+    <div class="eq-block">
+      <div class="big">e<sup>−iθ</sup> &nbsp;=&nbsp; cos(θ) − i·sin(θ)</div>
+      <div class="small">a point moving clockwise around the unit circle as θ grows</div>
+    </div>
+
+    <p class="panel-sub">Multiplying each sample <code>x[n]</code> by this spinning point is exactly the "spun samples" plot in section 02. If the signal already oscillates at the tested rate, the spin exactly undoes it and the points line up in one direction, so the sum <code>X[k]</code> grows large. At any other rate, the points keep rotating relative to the signal and average out near zero over the N samples. Summing over every sample n — then trying every k — is the entire Discrete Fourier Transform.</p>
+
+    <div class="eq-legend">
+      <span><b>x[n]</b> — one sample of sound</span>
+      <span><b>N</b> — how many samples we look at</span>
+      <span><b>k</b> — which frequency we're testing</span>
+      <span><b>X[k]</b> — how strongly that frequency is present</span>
+    </div>
+  </section>
+
+  <!-- 05 CHALLENGE (recap link) -->
+  <section id="challenge" class="panel">
+    <h2><span class="tag">05</span> Now you try</h2>
+    <p class="panel-sub">Jump back up to <a href="#build">Build an unknown signal</a> and click <strong>🎲 Challenge mode</strong>. A hidden signal will play — use the Compare slider or the Scan button to find every frequency inside it, then check your guess.</p>
+    <div class="btnrow">
+      <button class="primary" id="jumpChallenge">🎲 Start a challenge now</button>
+    </div>
+  </section>
+
+  <footer>Built with the Web Audio API and &lt;canvas&gt; — no charting libraries. Sample rate 3200&nbsp;Hz, window 64 samples (20&nbsp;ms), bin width 50&nbsp;Hz.</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- constants ----------
+  var FS = 3200;         // Hz, internal sample rate used for the DFT-style sum
+  var N = 64;             // samples in the analysis window
+  var WINDOW = N / FS;    // seconds (20ms)
+  var FMAX = 800;         // Hz, upper end of slider / spectrum
+  var SCAN_STEP = 4;      // Hz between scan points
+  var CANDIDATES = [100,150,200,250,300,350,400,450,500,550,600,650];
+
+  var cssVar = function(name){
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  };
+  var COLORS = {};
+  function refreshColors(){
+    COLORS.ink = cssVar('--ink');
+    COLORS.muted = cssVar('--muted');
+    COLORS.muted2 = cssVar('--muted-2');
+    COLORS.accent = cssVar('--accent');
+    COLORS.warn = cssVar('--warn');
+    COLORS.grid = cssVar('--grid');
+    COLORS.bg = '#080b0f';
+  }
+  refreshColors();
+
+  // ---------- state ----------
+  var idCounter = 1;
+  var state = {
+    components: [],
+    prevComponents: null,
+    challenge: { active:false, revealed:false, secretFreqs:[] },
+    testFreq: 300,
+    scanning: false,
+    spectrum: [] // {f, mag}
+  };
+
+  function mkComp(freq, amp, on){
+    return { id: idCounter++, freq:freq, amp: (amp==null?0.8:amp), on: on!==false };
+  }
+
+  function setComponents(list){
+    state.components = list.map(function(c){ return mkComp(c.freq, c.amp, true); });
+    renderChips();
+    fullRedraw();
+  }
+
+  // ---------- audio ----------
+  var actx = null;
+  function getCtx(){
+    if(!actx){
+      try{ actx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ actx = null; }
+    }
+    return actx;
+  }
+  function playComponents(list){
+    var ctx = getCtx();
+    if(!ctx) return;
+    if(ctx.state === 'suspended') ctx.resume();
+    var enabled = list.filter(function(c){ return c.on; });
+    if(!enabled.length) return;
+    var now = ctx.currentTime;
+    var dur = 1.4;
+    var master = ctx.createGain();
+    master.gain.setValueAtTime(0.0001, now);
+    master.gain.linearRampToValueAtTime(0.5, now + 0.03);
+    master.gain.linearRampToValueAtTime(0.5, now + dur - 0.12);
+    master.gain.linearRampToValueAtTime(0.0001, now + dur);
+    master.connect(ctx.destination);
+    enabled.forEach(function(c){
+      var osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = c.freq;
+      var g = ctx.createGain();
+      g.gain.value = Math.min(0.9, c.amp) / enabled.length;
+      osc.connect(g); g.connect(master);
+      osc.start(now);
+      osc.stop(now + dur + 0.05);
+    });
+  }
+
+  // ---------- math ----------
+  function activeComponents(){ return state.components; }
+
+  function sampleAt(list, t){
+    var s = 0;
+    for(var i=0;i<list.length;i++){
+      var c = list[i];
+      if(c.on) s += c.amp * Math.sin(2*Math.PI*c.freq*t);
+    }
+    return s;
+  }
+
+  function discreteSamples(list){
+    var arr = new Array(N);
+    for(var n=0;n<N;n++) arr[n] = sampleAt(list, n/FS);
+    return arr;
+  }
+
+  // returns {re, im, mag, pts:[{re,im}]}
+  function dftAt(list, f){
+    var samples = discreteSamples(list);
+    var re=0, im=0, pts=[];
+    for(var n=0;n<N;n++){
+      var theta = 2*Math.PI*f*n/FS;
+      var c = Math.cos(theta), s = Math.sin(theta);
+      var pr = samples[n]*c;
+      var pi = -samples[n]*s; // x[n] * (cos - i sin)
+      pts.push({re:pr, im:pi});
+      re += pr; im += pi;
+    }
+    return { re: re/N, im: im/N, mag: Math.sqrt(re*re+im*im)/N, pts: pts };
+  }
+
+  function meterMax(list){
+    var enabled = list.filter(function(c){return c.on;});
+    var maxAmp = 0;
+    enabled.forEach(function(c){ maxAmp = Math.max(maxAmp, c.amp); });
+    return Math.max(0.28, maxAmp/2 * 1.15);
+  }
+
+  // ---------- canvas helpers ----------
+  function ctxFor(canvas){
+    var dpr = window.devicePixelRatio || 1;
+    var rect = canvas.getBoundingClientRect();
+    var w = Math.max(1, Math.round(rect.width));
+    var h = Math.max(1, Math.round(rect.height));
+    if(canvas.width !== Math.round(w*dpr) || canvas.height !== Math.round(h*dpr)){
+      canvas.width = Math.round(w*dpr);
+      canvas.height = Math.round(h*dpr);
+    }
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = COLORS.bg;
+    ctx.fillRect(0,0,w,h);
+    return {ctx:ctx, w:w, h:h};
+  }
+
+  // ---------- draw: waveform ----------
+  var waveCanvas = document.getElementById('waveCanvas');
+  function drawWave(){
+    var f = ctxFor(waveCanvas), ctx=f.ctx, w=f.w, h=f.h;
+    var pad = 14;
+    var midY = h/2;
+    var list = activeComponents();
+
+    // amplitude scale
+    var maxAmp = list.filter(function(c){return c.on;}).reduce(function(a,c){return a+c.amp;}, 0) || 1;
+    var scaleY = (h/2 - pad) / Math.max(1, maxAmp);
+
+    // zero line
+    ctx.strokeStyle = COLORS.grid; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, midY); ctx.lineTo(w, midY); ctx.stroke();
+
+    // smooth curve
+    ctx.beginPath();
+    var STEPS = 400;
+    for(var i=0;i<=STEPS;i++){
+      var t = (i/STEPS) * WINDOW;
+      var y = midY - sampleAt(list, t) * scaleY;
+      var x = pad + (w-2*pad) * (i/STEPS);
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.strokeStyle = COLORS.accent;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // sample dots
+    ctx.fillStyle = COLORS.warn;
+    for(var n=0;n<N;n++){
+      var tn = n/FS;
+      var xn = pad + (w-2*pad) * (tn/WINDOW);
+      var yn = midY - sampleAt(list, tn) * scaleY;
+      ctx.beginPath(); ctx.arc(xn, yn, 2, 0, Math.PI*2); ctx.fill();
+    }
+
+    ctx.fillStyle = COLORS.muted2;
+    ctx.font = '10.5px "IBM Plex Mono", monospace';
+    ctx.fillText('64 samples · 20 ms window', pad, 14);
+  }
+
+  // ---------- draw: reference compare ----------
+  var refCanvas = document.getElementById('refCanvas');
+  function drawCompare(){
+    var f = ctxFor(refCanvas), ctx=f.ctx, w=f.w, h=f.h;
+    var pad = 14;
+    var midY = h/2;
+    var list = activeComponents();
+    var maxAmp = list.filter(function(c){return c.on;}).reduce(function(a,c){return a+c.amp;}, 0) || 1;
+    var scaleY = (h/2 - pad) / Math.max(1, maxAmp);
+
+    ctx.strokeStyle = COLORS.grid; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, midY); ctx.lineTo(w, midY); ctx.stroke();
+
+    // unknown signal
+    ctx.beginPath();
+    var STEPS = 400;
+    for(var i=0;i<=STEPS;i++){
+      var t = (i/STEPS) * WINDOW;
+      var y = midY - sampleAt(list, t) * scaleY;
+      var x = pad + (w-2*pad) * (i/STEPS);
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.strokeStyle = COLORS.accent;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // reference wave, dashed, scaled to a fixed visual amplitude
+    var refAmp = Math.max(1, maxAmp) * 0.55;
+    ctx.beginPath();
+    ctx.setLineDash([5,4]);
+    for(var i2=0;i2<=STEPS;i2++){
+      var t2 = (i2/STEPS) * WINDOW;
+      var y2 = midY - Math.cos(2*Math.PI*state.testFreq*t2) * refAmp * scaleY;
+      var x2 = pad + (w-2*pad) * (i2/STEPS);
+      if(i2===0) ctx.moveTo(x2,y2); else ctx.lineTo(x2,y2);
+    }
+    ctx.strokeStyle = COLORS.warn;
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.font = '10.5px "IBM Plex Mono", monospace';
+    ctx.fillStyle = COLORS.accent;
+    ctx.fillText('● signal', pad, 14);
+    ctx.fillStyle = COLORS.warn;
+    ctx.fillText('┄ reference @ ' + Math.round(state.testFreq) + ' Hz', pad+52, 14);
+  }
+
+  // ---------- draw: phasor ----------
+  var phasorCanvas = document.getElementById('phasorCanvas');
+  var lastResult = { mag:0, re:0, im:0 };
+  function drawPhasor(){
+    var f = ctxFor(phasorCanvas), ctx=f.ctx, w=f.w, h=f.h;
+    var cx = w/2, cy = h/2;
+    var radius = Math.min(w,h)/2 - 18;
+    var list = activeComponents();
+    var res = dftAt(list, state.testFreq);
+    lastResult = res;
+
+    var maxAmp = list.filter(function(c){return c.on;}).reduce(function(a,c){return a+c.amp;}, 0) || 1;
+    var scale = radius * 0.92 / Math.max(1, maxAmp);
+
+    // guide circle
+    ctx.strokeStyle = COLORS.grid; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(cx,cy, radius, 0, Math.PI*2); ctx.stroke();
+    // axes
+    ctx.beginPath(); ctx.moveTo(cx-radius,cy); ctx.lineTo(cx+radius,cy); ctx.moveTo(cx,cy-radius); ctx.lineTo(cx,cy+radius); ctx.stroke();
+
+    // scattered points, faint path
+    ctx.beginPath();
+    res.pts.forEach(function(p,i){
+      var x = cx + p.re*scale, y = cy - p.im*scale;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.strokeStyle = 'rgba(139,152,167,.35)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = COLORS.muted2;
+    res.pts.forEach(function(p){
+      var x = cx + p.re*scale, y = cy - p.im*scale;
+      ctx.beginPath(); ctx.arc(x,y,1.8,0,Math.PI*2); ctx.fill();
+    });
+
+    // average vector (center of mass)
+    var vx = cx + res.re*scale, vy = cy - res.im*scale;
+    var mmax = meterMax(list);
+    var ratio = Math.min(1, res.mag / mmax);
+    var vecColor = ratio > 0.5 ? COLORS.warn : COLORS.accent;
+    ctx.strokeStyle = vecColor;
+    ctx.lineWidth = 2.6;
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(vx,vy); ctx.stroke();
+    ctx.fillStyle = vecColor;
+    ctx.beginPath(); ctx.arc(vx,vy,4,0,Math.PI*2); ctx.fill();
+
+    ctx.fillStyle = COLORS.muted2;
+    ctx.font = '10.5px "IBM Plex Mono", monospace';
+    ctx.fillText('center of mass →', cx - radius, cy - radius - 4 < 0 ? 12 : cy - radius - 4);
+  }
+
+  // ---------- meter ----------
+  var meterFill = document.getElementById('meterFill');
+  var meterValue = document.getElementById('meterValue');
+  var meterCaption = document.getElementById('meterCaption');
+  function updateMeter(){
+    var list = activeComponents();
+    var mmax = meterMax(list);
+    var ratio = Math.min(1, lastResult.mag / mmax);
+    meterFill.style.width = (ratio*100).toFixed(1) + '%';
+    meterValue.textContent = lastResult.mag.toFixed(3);
+    var txt, cls;
+    if(ratio > 0.5){
+      txt = 'Strong response at ' + Math.round(state.testFreq) + ' Hz — the spun points pile up in one direction. This frequency is present.';
+      cls = 'strong';
+    } else if(ratio > 0.2){
+      txt = 'Partial response — getting close, but the points aren\'t fully aligned yet. Nudge the slider.';
+      cls = '';
+    } else {
+      txt = 'Weak response — the spun points scatter around the center and cancel out. Probably not a real component.';
+      cls = 'weak';
+    }
+    meterCaption.textContent = txt;
+    meterCaption.className = 'meter-caption ' + cls;
+  }
+
+  // ---------- draw: spectrum ----------
+  var spectrumCanvas = document.getElementById('spectrumCanvas');
+  function drawSpectrum(){
+    var f = ctxFor(spectrumCanvas), ctx=f.ctx, w=f.w, h=f.h;
+    var padL=34, padR=10, padT=14, padB=22;
+    var plotW = w-padL-padR, plotH = h-padT-padB;
+    var list = activeComponents();
+    var mmax = meterMax(list) * 1.15;
+
+    // grid + x labels
+    ctx.strokeStyle = COLORS.grid; ctx.lineWidth=1;
+    ctx.font = '10px "IBM Plex Mono", monospace';
+    ctx.fillStyle = COLORS.muted2;
+    for(var fq=0; fq<=FMAX; fq+=100){
+      var x = padL + plotW*(fq/FMAX);
+      ctx.beginPath(); ctx.moveTo(x,padT); ctx.lineTo(x,padT+plotH); ctx.stroke();
+      ctx.fillText(fq, x-8, h-6);
+    }
+    ctx.beginPath(); ctx.moveTo(padL,padT); ctx.lineTo(padL,padT+plotH); ctx.stroke();
+
+    function xFor(fq){ return padL + plotW*(fq/FMAX); }
+    function yFor(mag){ return padT + plotH - Math.min(1,mag/mmax)*plotH; }
+
+    // reveal true peaks?
+    var revealOk = !(state.challenge.active && !state.challenge.revealed);
+    if(revealOk){
+      list.filter(function(c){return c.on;}).forEach(function(c){
+        var x = xFor(c.freq);
+        ctx.strokeStyle = 'rgba(242,161,84,.5)';
+        ctx.setLineDash([3,3]);
+        ctx.beginPath(); ctx.moveTo(x,padT); ctx.lineTo(x,padT+plotH); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = COLORS.warn;
+        ctx.fillText(Math.round(c.freq), x-8, padT+10);
+      });
+    }
+
+    // spectrum line + fill
+    if(state.spectrum.length > 1){
+      ctx.beginPath();
+      state.spectrum.forEach(function(p,i){
+        var x = xFor(p.f), y = yFor(p.mag);
+        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      var last = state.spectrum[state.spectrum.length-1];
+      ctx.lineTo(xFor(last.f), padT+plotH);
+      ctx.lineTo(xFor(state.spectrum[0].f), padT+plotH);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(87,224,201,.16)';
+      ctx.fill();
+
+      ctx.beginPath();
+      state.spectrum.forEach(function(p,i){
+        var x = xFor(p.f), y = yFor(p.mag);
+        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      ctx.strokeStyle = COLORS.accent;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // playhead
+    if(state.scanning || document.activeElement === testFreqSlider){
+      var xh = xFor(state.testFreq);
+      ctx.strokeStyle = COLORS.ink;
+      ctx.globalAlpha = .5;
+      ctx.beginPath(); ctx.moveTo(xh,padT); ctx.lineTo(xh,padT+plotH); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function fullRedraw(){
+    drawWave();
+    drawPhasor();
+    drawCompare();
+    updateMeter();
+    drawSpectrum();
+  }
+
+  // ---------- chip rendering ----------
+  var chipList = document.getElementById('chipList');
+  function renderChips(){
+    var locked = state.challenge.active && !state.challenge.revealed;
+    chipList.innerHTML = '';
+    state.components.forEach(function(c){
+      var chip = document.createElement('div');
+      chip.className = 'chip';
+      var toggle = document.createElement('button');
+      toggle.className = 'chip-toggle' + (c.on?' on':'');
+      toggle.textContent = c.on ? '●' : '○';
+      toggle.disabled = locked;
+      toggle.title = 'enable / disable this tone';
+      toggle.addEventListener('click', function(){
+        c.on = !c.on; renderChips(); fullRedraw();
+      });
+
+      var freqSpan = document.createElement('span');
+      freqSpan.className = 'chip-freq mono' + (locked ? ' hidden-val' : '');
+      freqSpan.textContent = locked ? '??? Hz' : (Math.round(c.freq*100)/100) + ' Hz';
+
+      var amp = document.createElement('input');
+      amp.type = 'range'; amp.className='chip-amp';
+      amp.min=0.2; amp.max=1; amp.step=0.05; amp.value=c.amp;
+      amp.disabled = locked;
+      amp.addEventListener('input', function(){ c.amp = parseFloat(amp.value); fullRedraw(); });
+
+      var rm = document.createElement('button');
+      rm.className = 'chip-remove'; rm.textContent='✕'; rm.disabled = locked;
+      rm.title = 'remove tone';
+      rm.addEventListener('click', function(){
+        state.components = state.components.filter(function(x){return x.id!==c.id;});
+        renderChips(); fullRedraw();
+      });
+
+      chip.appendChild(toggle);
+      chip.appendChild(freqSpan);
+      chip.appendChild(amp);
+      chip.appendChild(rm);
+      chipList.appendChild(chip);
+    });
+  }
+
+  // ---------- presets ----------
+  document.getElementById('presetSimple').addEventListener('click', function(){
+    if(state.challenge.active) endChallenge(false);
+    setComponents([{freq:200,amp:1.0},{freq:300,amp:0.85},{freq:500,amp:0.65}]);
+  });
+  document.getElementById('presetChord').addEventListener('click', function(){
+    if(state.challenge.active) endChallenge(false);
+    setComponents([{freq:261.63,amp:1.0},{freq:329.63,amp:0.85},{freq:392.00,amp:0.75}]);
+  });
+
+  // ---------- add tone ----------
+  document.getElementById('addBtn').addEventListener('click', function(){
+    if(state.challenge.active) return;
+    var freq = parseFloat(document.getElementById('addFreq').value) || 400;
+    var amp = parseFloat(document.getElementById('addAmp').value) || 0.8;
+    freq = Math.max(20, Math.min(FMAX-20, freq));
+    state.components.push(mkComp(freq, amp, true));
+    renderChips(); fullRedraw();
+  });
+
+  // ---------- play sound ----------
+  document.getElementById('playSignal').addEventListener('click', function(){
+    playComponents(activeComponents());
+  });
+
+  // ---------- test frequency slider ----------
+  var testFreqSlider = document.getElementById('testFreqSlider');
+  var testFreqLabel = document.getElementById('testFreqLabel');
+  testFreqSlider.addEventListener('input', function(){
+    state.testFreq = parseFloat(testFreqSlider.value);
+    testFreqLabel.textContent = Math.round(state.testFreq) + ' Hz';
+    drawCompare(); drawPhasor(); updateMeter(); drawSpectrum();
+  });
+
+  // ---------- scan ----------
+  var scanBtn = document.getElementById('scanBtn');
+  function runScan(){
+    if(state.scanning) return;
+    state.scanning = true;
+    state.spectrum = [];
+    scanBtn.disabled = true;
+    scanBtn.textContent = '◼ Scanning…';
+    var freqs = [];
+    for(var fq=0; fq<=FMAX; fq+=SCAN_STEP) freqs.push(fq);
+    var idx = 0;
+    var perFrame = 2;
+    function step(){
+      var count = 0;
+      while(idx < freqs.length && count < perFrame){
+        var fval = freqs[idx];
+        var r = dftAt(activeComponents(), fval);
+        state.spectrum.push({f:fval, mag:r.mag});
+        idx++; count++;
+      }
+      state.testFreq = freqs[Math.min(idx, freqs.length-1)];
+      testFreqSlider.value = state.testFreq;
+      testFreqLabel.textContent = Math.round(state.testFreq) + ' Hz';
+      drawCompare(); drawPhasor(); updateMeter(); drawSpectrum();
+      if(idx < freqs.length){
+        requestAnimationFrame(step);
+      } else {
+        state.scanning = false;
+        scanBtn.disabled = false;
+        scanBtn.textContent = '▶ Scan 0–800 Hz';
+        drawSpectrum();
+      }
+    }
+    requestAnimationFrame(step);
+  }
+  scanBtn.addEventListener('click', runScan);
+
+  // ---------- challenge mode ----------
+  var challengeBanner = document.getElementById('challengeBanner');
+  var challengeToggle = document.getElementById('challengeToggle');
+  var secretCountEl = document.getElementById('secretCount');
+  var guessInput = document.getElementById('guessInput');
+  var guessResult = document.getElementById('guessResult');
+
+  function randomSecret(){
+    var pool = CANDIDATES.slice();
+    var count = Math.random() < 0.5 ? 2 : 3;
+    var picked = [];
+    for(var i=0;i<count;i++){
+      var idx = Math.floor(Math.random()*pool.length);
+      picked.push(pool.splice(idx,1)[0]);
+    }
+    return picked.map(function(fr){ return {freq:fr, amp: 0.6 + Math.random()*0.35}; });
+  }
+
+  function startChallenge(){
+    state.prevComponents = state.components.map(function(c){ return {freq:c.freq, amp:c.amp}; });
+    var secret = randomSecret();
+    state.challenge.active = true;
+    state.challenge.revealed = false;
+    state.challenge.secretFreqs = secret.map(function(c){return c.freq;});
+    secretCountEl.textContent = secret.length;
+    setComponents(secret);
+    challengeBanner.hidden = false;
+    challengeToggle.textContent = '✕ Exit challenge';
+    guessInput.value = '';
+    guessResult.textContent = '';
+    guessResult.className = '';
+    document.getElementById('addFreq').disabled = true;
+    document.getElementById('addAmp').disabled = true;
+    document.getElementById('addBtn').disabled = true;
+    document.getElementById('presetSimple').disabled = true;
+    document.getElementById('presetChord').disabled = true;
+    state.spectrum = [];
+    fullRedraw();
+  }
+
+  function endChallenge(restore){
+    state.challenge.active = false;
+    state.challenge.revealed = false;
+    challengeBanner.hidden = true;
+    challengeToggle.textContent = '🎲 Challenge mode';
+    document.getElementById('addFreq').disabled = false;
+    document.getElementById('addAmp').disabled = false;
+    document.getElementById('addBtn').disabled = false;
+    document.getElementById('presetSimple').disabled = false;
+    document.getElementById('presetChord').disabled = false;
+    if(restore && state.prevComponents){
+      setComponents(state.prevComponents);
+    } else {
+      renderChips(); fullRedraw();
+    }
+  }
+
+  challengeToggle.addEventListener('click', function(){
+    if(state.challenge.active){ endChallenge(true); }
+    else { startChallenge(); }
+  });
+  document.getElementById('jumpChallenge').addEventListener('click', function(){
+    document.getElementById('build').scrollIntoView({behavior:'smooth'});
+    if(!state.challenge.active) startChallenge();
+  });
+
+  document.getElementById('playChallenge').addEventListener('click', function(){
+    playComponents(activeComponents());
+  });
+  document.getElementById('newChallenge').addEventListener('click', function(){
+    startChallenge();
+  });
+  document.getElementById('revealChallenge').addEventListener('click', function(){
+    state.challenge.revealed = true;
+    renderChips();
+    drawSpectrum();
+    guessResult.textContent = 'The hidden tones were: ' + state.challenge.secretFreqs.map(function(f){return Math.round(f)+' Hz';}).join(', ') + '.';
+    guessResult.className = '';
+  });
+  document.getElementById('checkGuess').addEventListener('click', function(){
+    var nums = guessInput.value.split(',').map(function(s){return parseFloat(s.trim());}).filter(function(n){return !isNaN(n);});
+    if(!nums.length){ guessResult.textContent = 'Enter at least one frequency guess.'; guessResult.className='bad'; return; }
+    var secret = state.challenge.secretFreqs.slice();
+    var matched = [];
+    var used = new Array(secret.length).fill(false);
+    nums.forEach(function(g){
+      var bestI=-1, bestD=20;
+      secret.forEach(function(s,i){
+        if(used[i]) return;
+        var d = Math.abs(s-g);
+        if(d<=bestD){ bestD=d; bestI=i; }
+      });
+      if(bestI>=0){ used[bestI]=true; matched.push(g); }
+    });
+    var correct = matched.length;
+    var total = secret.length;
+    if(correct === total && nums.length === total){
+      guessResult.textContent = 'All ' + total + ' correct! The signal contained: ' + secret.map(function(f){return Math.round(f)+' Hz';}).join(', ') + '.';
+      guessResult.className = 'good';
+      state.challenge.revealed = true;
+      renderChips(); drawSpectrum();
+    } else {
+      guessResult.textContent = correct + ' of ' + total + ' tones matched (within ±20 Hz). Keep scanning — try again.';
+      guessResult.className = 'bad';
+    }
+  });
+
+  // ---------- resize ----------
+  var resizeTimer;
+  window.addEventListener('resize', function(){
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(fullRedraw, 120);
+  });
+
+  setComponents([
+    {freq:200, amp:1.0},
+    {freq:300, amp:0.85},
+    {freq:500, amp:0.65}
+  ]);
+})();
+</script>
+
+</body></html>
