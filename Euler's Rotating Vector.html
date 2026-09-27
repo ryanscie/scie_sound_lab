@@ -1,0 +1,806 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Euler's Rotating Vector</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    --bg:#f2f4f7;
+    --surface:#ffffff;
+    --surface-2:#e8ecf2;
+    --ink:#182233;
+    --muted:#5c6b81;
+    --grid:#c9d2de;
+    --line:#d5dce6;
+    --real:#0f8a82;
+    --real-soft:#0f8a821a;
+    --imag:#7350d6;
+    --imag-soft:#7350d61a;
+    --accent:#e0762c;
+    --good:#1a8a4a;
+    --bad:#c2410c;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0e131c;
+      --surface:#161d2a;
+      --surface-2:#1d2636;
+      --ink:#e7ecf5;
+      --muted:#93a1b8;
+      --grid:#2b3548;
+      --line:#28324450;
+      --real:#4fd8ce;
+      --real-soft:#4fd8ce1f;
+      --imag:#b09bff;
+      --imag-soft:#b09bff1f;
+      --accent:#f0a35f;
+      --good:#4ade80;
+      --bad:#f2775c;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0e131c;
+    --surface:#161d2a;
+    --surface-2:#1d2636;
+    --ink:#e7ecf5;
+    --muted:#93a1b8;
+    --grid:#2b3548;
+    --line:#28324450;
+    --real:#4fd8ce;
+    --real-soft:#4fd8ce1f;
+    --imag:#b09bff;
+    --imag-soft:#b09bff1f;
+    --accent:#f0a35f;
+    --good:#4ade80;
+    --bad:#f2775c;
+    color-scheme: dark;
+  }
+
+  *{ box-sizing:border-box; }
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family:'IBM Plex Sans', system-ui, sans-serif;
+    padding-inline: 16px;
+    padding-block: 28px 48px;
+    max-width: 1180px;
+    margin-inline: auto;
+  }
+  h1,h2,h3{ font-family:'Manrope', system-ui, sans-serif; text-wrap: balance; margin: 0; }
+  .mono{ font-family:'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  header.top{ margin-block-end: 22px; }
+  header.top h1{ font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.2rem); font-weight:800; letter-spacing:-0.01em; }
+  header.top p{ color: var(--muted); max-width: 62ch; margin-block-start:8px; font-size:0.98rem; line-height:1.5; }
+  .eyebrow{ text-transform:uppercase; letter-spacing:0.12em; font-size:0.72rem; font-weight:600; color: var(--accent); margin-bottom:6px; }
+
+  .card{
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px;
+  }
+
+  .grid-two{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 760px){
+    .grid-two{ grid-template-columns: 1fr; }
+  }
+
+  .panel-title{ font-size:0.95rem; font-weight:700; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .panel-title .tag{ font-size:0.68rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; }
+
+  canvas{ width:100%; display:block; aspect-ratio: 1/1; border-radius:10px; background: var(--surface-2); }
+  #waveCanvas{ aspect-ratio: 16/10; }
+  #challengeCanvas{ aspect-ratio: 1/1; cursor: crosshair; max-width:340px; margin-inline:auto; }
+
+  .legend{ display:flex; gap:14px; flex-wrap:wrap; font-size:0.78rem; color:var(--muted); margin-top:8px; }
+  .legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .swatch{ width:12px; height:3px; border-radius:2px; display:inline-block; }
+
+  .controls-bar{ margin-block:16px; }
+  .row{ display:flex; flex-wrap:wrap; align-items:center; gap:14px; }
+  .slider-block{ flex:1 1 260px; min-width:220px; }
+  .slider-block label{ display:flex; justify-content:space-between; font-size:0.82rem; font-weight:600; margin-bottom:6px; }
+  .slider-block label .val{ color: var(--accent); }
+  input[type=range]{ width:100%; accent-color: var(--accent); }
+
+  button{
+    font-family:'IBM Plex Sans', sans-serif;
+    font-weight:600;
+    font-size:0.86rem;
+    border-radius:9px;
+    border:1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--ink);
+    padding:9px 14px;
+    cursor:pointer;
+  }
+  button:hover{ border-color: var(--accent); }
+  button:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  button.primary{ background: var(--accent); border-color: var(--accent); color:#231204; }
+  button.angle-btn.active{ background: var(--real-soft); border-color: var(--real); color: var(--real); }
+
+  .angle-btns{ display:flex; flex-wrap:wrap; gap:8px; }
+
+  .eq-panel{ margin-block:16px; }
+  .eq-row{ display:flex; flex-wrap:wrap; gap:22px; align-items:baseline; }
+  .eq-main{ font-size:1.25rem; font-weight:600; }
+  .eq-main .im{ color: var(--imag); }
+  .eq-main .re{ color: var(--real); }
+  .eq-sub{ display:flex; gap:22px; flex-wrap:wrap; font-size:1.02rem; }
+  .eq-sub .re{ color: var(--real); font-weight:600; }
+  .eq-sub .im{ color: var(--imag); font-weight:600; }
+
+  .divider{ height:1px; background: var(--line); margin-block: 30px; border:0; }
+
+  section.gen{ }
+  .gen-grid{ display:grid; grid-template-columns: 1.1fr 1fr; gap:20px; }
+  @media (max-width: 820px){ .gen-grid{ grid-template-columns:1fr; } }
+
+  .explain-trio{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:14px; }
+  @media (max-width:640px){ .explain-trio{ grid-template-columns:1fr; } }
+  .explain-card{ background: var(--surface-2); border-radius:10px; padding:12px 14px; font-size:0.84rem; }
+  .explain-card b{ display:block; font-family:'Manrope'; font-size:0.95rem; margin-bottom:3px; }
+  .explain-card .re-dot{ color:var(--real); }
+  .explain-card .im-dot{ color:var(--imag); }
+  .explain-card .ac-dot{ color:var(--accent); }
+
+  .general-eq{ background: var(--surface-2); border-radius:10px; padding:16px; margin-top:14px; font-size:1.15rem; }
+  .general-eq .small{ font-size:0.8rem; color:var(--muted); margin-top:8px; font-family:'IBM Plex Sans'; }
+
+  .challenge-wrap{ display:grid; grid-template-columns: 340px 1fr; gap:22px; align-items:start; }
+  @media (max-width:720px){ .challenge-wrap{ grid-template-columns:1fr; } }
+  .challenge-text p{ margin:0 0 10px; line-height:1.55; font-size:0.95rem; }
+  #feedback{ min-height: 1.4em; font-weight:600; margin-top:10px; }
+  #feedback.good{ color: var(--good); }
+  #feedback.bad{ color: var(--bad); }
+  .guess-dot{ }
+
+  footer.note{ margin-top:30px; font-size:0.78rem; color:var(--muted); text-align:center; }
+</style>
+
+<header class="top">
+  <div class="eyebrow">Audio Signal Processing · ECA</div>
+  <h1>Euler's formula as a rotating vector</h1>
+  <p>e<sup>iθ</sup> = cos θ + i sin θ isn't an algebra trick — it's a compact way to describe a vector of length 1 spinning around the origin. Watch the vector turn, and watch its horizontal shadow trace out a cosine wave.</p>
+</header>
+
+<div class="grid-two">
+  <div class="card">
+    <div class="panel-title">Complex plane <span class="tag">Re + i·Im</span></div>
+    <canvas id="planeCanvas" width="600" height="600" aria-label="Rotating vector on the complex plane"></canvas>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--real)"></span>Real projection — cos θ</span>
+      <span><span class="swatch" style="background:var(--imag)"></span>Imaginary projection — sin θ</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="panel-title">The same rotation, unrolled in time <span class="tag">Re(e^iθ) vs θ</span></div>
+    <canvas id="waveCanvas" width="900" height="560" aria-label="Cosine and sine waves traced by the rotating vector"></canvas>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--real)"></span>A·cos θ (solid)</span>
+      <span><span class="swatch" style="background:var(--imag);border-top:2px dashed var(--imag);height:0"></span>A·sin θ (dashed)</span>
+    </div>
+  </div>
+</div>
+
+<div class="controls-bar card">
+  <div class="row">
+    <div class="slider-block">
+      <label for="thetaSlider">θ (angle) <span class="val mono" id="thetaVal">0.00 rad (0°)</span></label>
+      <input type="range" id="thetaSlider" min="0" max="6.28318530718" step="0.001" value="0">
+    </div>
+    <button id="playBtn" class="primary">▶ Animate</button>
+  </div>
+  <div class="row" style="margin-top:14px;">
+    <span style="font-size:0.82rem; color:var(--muted); font-weight:600;">Special angles:</span>
+    <div class="angle-btns">
+      <button class="angle-btn" data-angle="0">0</button>
+      <button class="angle-btn" data-angle="1.5707963268">π/2</button>
+      <button class="angle-btn" data-angle="3.1415926536">π</button>
+      <button class="angle-btn" data-angle="4.7123889804">3π/2</button>
+      <button class="angle-btn" data-angle="6.2831853072">2π</button>
+    </div>
+  </div>
+</div>
+
+<div class="eq-panel card">
+  <div class="eq-row">
+    <div class="eq-main mono">e<sup>iθ</sup> = <span class="re" id="eqCos">1.000</span> + <span class="im" id="eqSin">0.000i</span></div>
+  </div>
+  <div class="eq-sub mono" style="margin-top:10px;">
+    <div>Real(e<sup>iθ</sup>) = cos θ = <span class="re" id="reVal">1.000</span></div>
+    <div>Imag(e<sup>iθ</sup>) = sin θ = <span class="im" id="imVal">0.000</span></div>
+  </div>
+  <div id="specialNote" class="mono" style="margin-top:10px; font-size:0.9rem; color:var(--muted);"></div>
+</div>
+
+<hr class="divider">
+
+<section class="gen">
+  <div class="eyebrow">Beyond the unit circle</div>
+  <h2>The general rotating phasor: A·e<sup>i(ωt + φ)</sup></h2>
+  <p style="color:var(--muted); max-width:68ch; margin-top:6px;">In audio, a signal is rarely just cos θ — it has a size, a speed of oscillation, and a starting point. These three sliders map directly onto that same rotating-vector picture.</p>
+
+  <div class="gen-grid" style="margin-top:16px;">
+    <div class="card">
+      <div class="row" style="flex-direction:column; align-items:stretch; gap:16px;">
+        <div class="slider-block">
+          <label for="ampSlider">Amplitude A <span class="val mono" id="ampVal">1.00</span></label>
+          <input type="range" id="ampSlider" min="0.2" max="1.5" step="0.01" value="1">
+        </div>
+        <div class="slider-block">
+          <label for="freqSlider">Frequency f (rotation speed, Hz) <span class="val mono" id="freqVal">0.25</span></label>
+          <input type="range" id="freqSlider" min="0.05" max="1.2" step="0.01" value="0.25">
+        </div>
+        <div class="slider-block">
+          <label for="phaseSlider">Phase φ (starting angle) <span class="val mono" id="phaseVal">0.00 rad</span></label>
+          <input type="range" id="phaseSlider" min="-3.14159265" max="3.14159265" step="0.01" value="0">
+        </div>
+      </div>
+      <div class="explain-trio">
+        <div class="explain-card"><b class="ac-dot">Amplitude</b>= radius of the vector.</div>
+        <div class="explain-card"><b class="ac-dot">Frequency</b>= how fast it spins.</div>
+        <div class="explain-card"><b class="ac-dot">Phase</b>= where it starts spinning from.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="general-eq mono">
+        A·e<sup>i(ωt+φ)</sup>, with A = <span id="genA">1.00</span>, f = <span id="genF">0.25</span> Hz, φ = <span id="genPhi">0.00</span> rad
+        <div class="small mono" style="font-size:1rem; margin-top:12px; color:var(--ink);">Real part → A·cos(ωt+φ) = <span class="re" id="genReal" style="font-weight:600;">1.00</span></div>
+        <div class="small">This is exactly the signal you'd see on an oscilloscope: the shadow of a spinning vector.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<section class="card">
+  <div class="eyebrow">Try it</div>
+  <h2>Predict the rotation</h2>
+  <div class="challenge-wrap" style="margin-top:14px;">
+    <div>
+      <canvas id="challengeCanvas" width="400" height="400" aria-label="Click to place your prediction on the unit circle"></canvas>
+    </div>
+    <div class="challenge-text">
+      <p id="challengePrompt">Click "New challenge" to begin.</p>
+      <div class="row">
+        <button id="newChallengeBtn" class="primary">New challenge</button>
+        <button id="revealBtn">Reveal answer</button>
+      </div>
+      <div id="feedback" class="mono"></div>
+    </div>
+  </div>
+</section>
+
+<footer class="note">e^(iθ) traces the unit circle once for every θ that increases by 2π — one full lap, one full audio cycle.</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  var TAU = Math.PI * 2;
+  var state = {
+    angle: 0,
+    amplitude: 1,
+    freqHz: 0.25,
+    phase: 0,
+    playing: false
+  };
+  var lastPhase = 0;
+
+  function fmt(n, d){ return n.toFixed(d==null?3:d); }
+  function degrees(rad){ return (rad * 180 / Math.PI); }
+
+  function wrapForDisplay(a){
+    var w = a % TAU;
+    if (w < 0) w += TAU;
+    return w;
+  }
+
+  // ---------- DOM refs ----------
+  var thetaSlider = document.getElementById('thetaSlider');
+  var thetaVal = document.getElementById('thetaVal');
+  var playBtn = document.getElementById('playBtn');
+  var angleButtons = Array.prototype.slice.call(document.querySelectorAll('.angle-btn'));
+  var eqCos = document.getElementById('eqCos');
+  var eqSin = document.getElementById('eqSin');
+  var reVal = document.getElementById('reVal');
+  var imVal = document.getElementById('imVal');
+  var specialNote = document.getElementById('specialNote');
+
+  var ampSlider = document.getElementById('ampSlider');
+  var ampVal = document.getElementById('ampVal');
+  var freqSlider = document.getElementById('freqSlider');
+  var freqVal = document.getElementById('freqVal');
+  var phaseSlider = document.getElementById('phaseSlider');
+  var phaseVal = document.getElementById('phaseVal');
+  var genA = document.getElementById('genA');
+  var genF = document.getElementById('genF');
+  var genPhi = document.getElementById('genPhi');
+  var genReal = document.getElementById('genReal');
+
+  var planeCanvas = document.getElementById('planeCanvas');
+  var planeCtx = planeCanvas.getContext('2d');
+  var waveCanvas = document.getElementById('waveCanvas');
+  var waveCtx = waveCanvas.getContext('2d');
+
+  function cssVar(name){
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  // ---------- canvas sizing ----------
+  function sizeCanvas(canvas){
+    var rect = canvas.getBoundingClientRect();
+    var dpr = window.devicePixelRatio || 1;
+    var w = Math.max(1, Math.round(rect.width * dpr));
+    var h = Math.max(1, Math.round(rect.height * dpr));
+    if (canvas.width !== w || canvas.height !== h){
+      canvas.width = w;
+      canvas.height = h;
+    }
+    return { w: w, h: h, dpr: dpr };
+  }
+
+  // ---------- draw complex plane ----------
+  function drawPlane(){
+    var dims = sizeCanvas(planeCanvas);
+    var ctx = planeCtx;
+    var w = dims.w, h = dims.h;
+    ctx.clearRect(0,0,w,h);
+
+    var cx = w/2, cy = h/2;
+    var R = Math.min(w,h) * 0.36;
+
+    var ink = cssVar('--ink');
+    var muted = cssVar('--muted');
+    var grid = cssVar('--grid');
+    var real = cssVar('--real');
+    var imag = cssVar('--imag');
+    var accent = cssVar('--accent');
+
+    ctx.lineWidth = Math.max(1, dims.dpr);
+
+    // axes
+    ctx.strokeStyle = grid;
+    ctx.lineWidth = 1.5*dims.dpr;
+    ctx.beginPath();
+    ctx.moveTo(cx - R*1.35, cy); ctx.lineTo(cx + R*1.35, cy);
+    ctx.moveTo(cx, cy - R*1.35); ctx.lineTo(cx, cy + R*1.35);
+    ctx.stroke();
+
+    // axis labels
+    ctx.fillStyle = muted;
+    ctx.font = (13*dims.dpr) + 'px IBM Plex Mono, monospace';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillText('Re', cx + R*1.35 + 6*dims.dpr, cy);
+    ctx.textAlign = 'center';
+    ctx.fillText('Im', cx, cy - R*1.35 - 12*dims.dpr);
+    ctx.fillText('1', cx + R, cy + 16*dims.dpr);
+    ctx.fillText('-1', cx - R, cy + 16*dims.dpr);
+    ctx.textAlign = 'right';
+    ctx.fillText('1', cx - 8*dims.dpr, cy - R);
+    ctx.fillText('-1', cx - 8*dims.dpr, cy + R);
+
+    // unit circle
+    ctx.strokeStyle = grid;
+    ctx.setLineDash([4*dims.dpr, 5*dims.dpr]);
+    ctx.lineWidth = 1.5*dims.dpr;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, TAU);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    var A = state.amplitude;
+    var theta = state.angle;
+    var vx = A*Math.cos(theta);
+    var vy = A*Math.sin(theta);
+    var px = cx + vx*R, py = cy - vy*R;
+
+    // amplitude circle if different from 1
+    if (Math.abs(A-1) > 0.01){
+      ctx.strokeStyle = accent + '80';
+      ctx.setLineDash([2*dims.dpr,4*dims.dpr]);
+      ctx.beginPath();
+      ctx.arc(cx, cy, A*R, 0, TAU);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // angle arc
+    var arcR = R*0.22;
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 2*dims.dpr;
+    ctx.beginPath();
+    ctx.arc(cx, cy, arcR, 0, -theta, theta > 0 ? false : true);
+    ctx.stroke();
+
+    // projections
+    ctx.setLineDash([3*dims.dpr,4*dims.dpr]);
+    ctx.lineWidth = 1.5*dims.dpr;
+    ctx.strokeStyle = real;
+    ctx.beginPath();
+    ctx.moveTo(px, py); ctx.lineTo(px, cy);
+    ctx.stroke();
+    ctx.strokeStyle = imag;
+    ctx.beginPath();
+    ctx.moveTo(px, py); ctx.lineTo(cx, py);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // projection dots
+    ctx.fillStyle = real;
+    ctx.beginPath(); ctx.arc(px, cy, 4.5*dims.dpr, 0, TAU); ctx.fill();
+    ctx.fillStyle = imag;
+    ctx.beginPath(); ctx.arc(cx, py, 4.5*dims.dpr, 0, TAU); ctx.fill();
+
+    // vector
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = 3*dims.dpr;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx, cy); ctx.lineTo(px, py);
+    ctx.stroke();
+
+    // arrowhead
+    var ah = 9*dims.dpr;
+    var ang = Math.atan2(py-cy, px-cx);
+    ctx.fillStyle = ink;
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(px - ah*Math.cos(ang-0.4), py - ah*Math.sin(ang-0.4));
+    ctx.lineTo(px - ah*Math.cos(ang+0.4), py - ah*Math.sin(ang+0.4));
+    ctx.closePath();
+    ctx.fill();
+
+    // tip dot
+    ctx.fillStyle = accent;
+    ctx.beginPath(); ctx.arc(px, py, 5.5*dims.dpr, 0, TAU); ctx.fill();
+
+    // theta label near arc
+    ctx.fillStyle = accent;
+    ctx.font = '600 ' + (14*dims.dpr) + 'px IBM Plex Mono, monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    var labelAng = theta/2;
+    ctx.fillText('θ', cx + (arcR+16*dims.dpr)*Math.cos(-labelAng), cy + (arcR+16*dims.dpr)*Math.sin(-labelAng));
+  }
+
+  // ---------- draw wave ----------
+  function drawWave(){
+    var dims = sizeCanvas(waveCanvas);
+    var ctx = waveCtx;
+    var w = dims.w, h = dims.h;
+    ctx.clearRect(0,0,w,h);
+
+    var muted = cssVar('--muted');
+    var grid = cssVar('--grid');
+    var real = cssVar('--real');
+    var imag = cssVar('--imag');
+
+    var padL = 44*dims.dpr, padR = 18*dims.dpr, padT = 16*dims.dpr, padB = 30*dims.dpr;
+    var plotW = w - padL - padR, plotH = h - padT - padB;
+    var midY = padT + plotH/2;
+    var A = state.amplitude;
+
+    // gridlines
+    ctx.strokeStyle = grid;
+    ctx.lineWidth = 1*dims.dpr;
+    ctx.fillStyle = muted;
+    ctx.font = (11*dims.dpr) + 'px IBM Plex Mono, monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    [1,0,-1].forEach(function(v){
+      var y = midY - v*(plotH/2/1.55);
+      ctx.beginPath();
+      ctx.moveTo(padL, y); ctx.lineTo(w-padR, y);
+      ctx.stroke();
+      ctx.fillText(v.toString(), padL - 6*dims.dpr, y);
+    });
+
+    function yFor(val){ return midY - val*(plotH/2/1.55); }
+
+    var theta = state.angle;
+    var windowSpan = TAU*2; // show two full cycles
+    var start = theta - windowSpan;
+    var N = 240;
+
+    function plotCurve(fn, color, dashed){
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5*dims.dpr;
+      if (dashed) ctx.setLineDash([5*dims.dpr,4*dims.dpr]); else ctx.setLineDash([]);
+      ctx.beginPath();
+      for (var i=0;i<=N;i++){
+        var x = start + (i/N)*windowSpan;
+        var val = A*fn(x);
+        var px = padL + (i/N)*plotW;
+        var py = yFor(val);
+        if (i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    plotCurve(Math.sin, imag, true);
+    plotCurve(Math.cos, real, false);
+
+    // now-line + markers
+    var nowX = padL + plotW;
+    ctx.strokeStyle = muted;
+    ctx.setLineDash([2*dims.dpr,3*dims.dpr]);
+    ctx.lineWidth = 1*dims.dpr;
+    ctx.beginPath();
+    ctx.moveTo(nowX, padT); ctx.lineTo(nowX, padT+plotH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    var cosNow = A*Math.cos(theta), sinNow = A*Math.sin(theta);
+    ctx.fillStyle = real;
+    ctx.beginPath(); ctx.arc(nowX, yFor(cosNow), 5*dims.dpr, 0, TAU); ctx.fill();
+    ctx.fillStyle = imag;
+    ctx.beginPath(); ctx.arc(nowX, yFor(sinNow), 5*dims.dpr, 0, TAU); ctx.fill();
+
+    // x axis label
+    ctx.fillStyle = muted;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText('θ (2 cycles shown, now = right edge)', padL + plotW/2, h - 8*dims.dpr);
+  }
+
+  // ---------- equations ----------
+  function updateEquations(){
+    var theta = state.angle;
+    var c = Math.cos(theta), s = Math.sin(theta);
+    eqCos.textContent = fmt(c,3);
+    eqSin.textContent = fmt(s,3) + 'i';
+    reVal.textContent = fmt(c,3);
+    imVal.textContent = fmt(s,3);
+
+    var wrapped = wrapForDisplay(theta);
+    thetaVal.textContent = fmt(theta,2) + ' rad (' + fmt(degrees(theta),0) + '°)';
+    if (Math.abs(thetaSlider.value - theta) > 0.0005){
+      thetaSlider.value = wrapped;
+    }
+
+    // special angle highlighting
+    var eps = 0.01;
+    var matched = null;
+    angleButtons.forEach(function(btn){
+      var target = parseFloat(btn.dataset.angle);
+      var isMatch = Math.abs(theta - target) < eps;
+      btn.classList.toggle('active', isMatch);
+      if (isMatch) matched = btn;
+    });
+    if (matched){
+      var labels = {'0':'e^{i·0} = 1  (start: pointing along +Real)',
+        '1.5707963268':'e^{iπ/2} = i  (pointing straight up, +Imaginary)',
+        '3.1415926536':'e^{iπ} = -1  (pointing along -Real — a half turn)',
+        '4.7123889804':'e^{i3π/2} = -i  (pointing straight down, -Imaginary)',
+        '6.2831853072':'e^{i2π} = 1  (back where it started — one full lap)'};
+      specialNote.textContent = labels[matched.dataset.angle] || '';
+    } else {
+      specialNote.textContent = '';
+    }
+
+    // general formula readout uses same angle
+    genReal.textContent = fmt(state.amplitude*c, 3);
+  }
+
+  function updateGeneralLabels(){
+    ampVal.textContent = fmt(state.amplitude,2);
+    freqVal.textContent = fmt(state.freqHz,2);
+    phaseVal.textContent = fmt(state.phase,2) + ' rad';
+    genA.textContent = fmt(state.amplitude,2);
+    genF.textContent = fmt(state.freqHz,2);
+    genPhi.textContent = fmt(state.phase,2);
+  }
+
+  function redrawAll(){
+    drawPlane();
+    drawWave();
+    updateEquations();
+  }
+
+  // ---------- animation ----------
+  var lastT = null;
+  function tick(t){
+    if (lastT == null) lastT = t;
+    var dt = (t - lastT)/1000;
+    lastT = t;
+    if (state.playing){
+      var omega = TAU * state.freqHz;
+      state.angle += omega * dt;
+      if (state.angle > TAU*3) state.angle -= TAU;
+    }
+    redrawAll();
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  // ---------- interactions ----------
+  thetaSlider.addEventListener('input', function(){
+    state.playing = false;
+    playBtn.textContent = '▶ Animate';
+    state.angle = parseFloat(thetaSlider.value);
+  });
+
+  playBtn.addEventListener('click', function(){
+    state.playing = !state.playing;
+    playBtn.textContent = state.playing ? '⏸ Pause' : '▶ Animate';
+  });
+
+  angleButtons.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      state.playing = false;
+      playBtn.textContent = '▶ Animate';
+      state.angle = parseFloat(btn.dataset.angle);
+    });
+  });
+
+  ampSlider.addEventListener('input', function(){
+    state.amplitude = parseFloat(ampSlider.value);
+    updateGeneralLabels();
+  });
+  freqSlider.addEventListener('input', function(){
+    state.freqHz = parseFloat(freqSlider.value);
+    updateGeneralLabels();
+  });
+  phaseSlider.addEventListener('input', function(){
+    var newPhase = parseFloat(phaseSlider.value);
+    var delta = newPhase - lastPhase;
+    state.angle += delta;
+    lastPhase = newPhase;
+    state.phase = newPhase;
+    updateGeneralLabels();
+  });
+
+  window.addEventListener('resize', redrawAll);
+
+  // ---------- challenge ----------
+  var challengeCanvas = document.getElementById('challengeCanvas');
+  var chCtx = challengeCanvas.getContext('2d');
+  var challengePrompt = document.getElementById('challengePrompt');
+  var feedback = document.getElementById('feedback');
+  var newChallengeBtn = document.getElementById('newChallengeBtn');
+  var revealBtn = document.getElementById('revealBtn');
+
+  var challenge = { startAngle: 0, deltaDeg: 90, guess: null, revealed: false, active: false };
+  var deltaOptions = [30,45,60,90,120,180,270];
+
+  function drawChallenge(){
+    var dims = sizeCanvas(challengeCanvas);
+    var ctx = chCtx;
+    var w = dims.w, h = dims.h;
+    ctx.clearRect(0,0,w,h);
+    var cx = w/2, cy = h/2;
+    var R = Math.min(w,h)*0.38;
+
+    var grid = cssVar('--grid');
+    var muted = cssVar('--muted');
+    var ink = cssVar('--ink');
+    var real = cssVar('--real');
+    var accent = cssVar('--accent');
+    var good = cssVar('--good');
+
+    ctx.strokeStyle = grid;
+    ctx.lineWidth = 1.5*dims.dpr;
+    ctx.beginPath();
+    ctx.moveTo(cx-R*1.2,cy); ctx.lineTo(cx+R*1.2,cy);
+    ctx.moveTo(cx,cy-R*1.2); ctx.lineTo(cx,cy+R*1.2);
+    ctx.stroke();
+
+    ctx.setLineDash([4*dims.dpr,5*dims.dpr]);
+    ctx.beginPath();
+    ctx.arc(cx,cy,R,0,TAU);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    if (!challenge.active){
+      ctx.fillStyle = muted;
+      ctx.font = (13*dims.dpr)+'px IBM Plex Sans, sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('Press "New challenge"', cx, cy);
+      return;
+    }
+
+    // starting vector (faint)
+    var sx = cx + R*Math.cos(challenge.startAngle);
+    var sy = cy - R*Math.sin(challenge.startAngle);
+    ctx.strokeStyle = ink + '80';
+    ctx.lineWidth = 2*dims.dpr;
+    ctx.setLineDash([3*dims.dpr,3*dims.dpr]);
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(sx,sy); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = ink;
+    ctx.beginPath(); ctx.arc(sx,sy,4*dims.dpr,0,TAU); ctx.fill();
+
+    // user's guess
+    if (challenge.guess != null){
+      var gx = cx + R*Math.cos(challenge.guess);
+      var gy = cy - R*Math.sin(challenge.guess);
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 2.5*dims.dpr;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(gx,gy); ctx.stroke();
+      ctx.fillStyle = accent;
+      ctx.beginPath(); ctx.arc(gx,gy,6*dims.dpr,0,TAU); ctx.fill();
+    }
+
+    // revealed answer
+    if (challenge.revealed){
+      var targetAngle = challenge.startAngle + challenge.deltaDeg*Math.PI/180;
+      var tx = cx + R*Math.cos(targetAngle);
+      var ty = cy - R*Math.sin(targetAngle);
+      ctx.strokeStyle = real;
+      ctx.lineWidth = 3*dims.dpr;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(tx,ty); ctx.stroke();
+      ctx.fillStyle = real;
+      ctx.beginPath(); ctx.arc(tx,ty,6.5*dims.dpr,0,TAU); ctx.fill();
+    }
+  }
+
+  function newChallenge(){
+    challenge.startAngle = Math.random()*TAU;
+    challenge.deltaDeg = deltaOptions[Math.floor(Math.random()*deltaOptions.length)];
+    challenge.guess = null;
+    challenge.revealed = false;
+    challenge.active = true;
+    var startDeg = Math.round(degrees(wrapForDisplay(challenge.startAngle)));
+    challengePrompt.textContent = 'The dark vector starts at θ ≈ ' + startDeg + '°. If it rotates +' + challenge.deltaDeg + '°, click on the circle where you think the tip will land, then reveal the answer.';
+    feedback.textContent = '';
+    feedback.className = 'mono';
+    drawChallenge();
+  }
+
+  function revealChallenge(){
+    if (!challenge.active) return;
+    challenge.revealed = true;
+    if (challenge.guess == null){
+      feedback.textContent = 'Place a guess on the circle first.';
+      feedback.className = 'mono';
+      drawChallenge();
+      return;
+    }
+    var targetAngle = wrapForDisplay(challenge.startAngle + challenge.deltaDeg*Math.PI/180);
+    var guessAngle = wrapForDisplay(challenge.guess);
+    var diff = Math.abs(targetAngle - guessAngle);
+    diff = Math.min(diff, TAU-diff);
+    var diffDeg = degrees(diff);
+    var targetDeg = Math.round(degrees(targetAngle));
+    if (diffDeg < 15){
+      feedback.textContent = 'Correct — the vector lands at θ ≈ ' + targetDeg + '°.';
+      feedback.className = 'mono good';
+    } else {
+      feedback.textContent = 'Not quite — you were off by ' + Math.round(diffDeg) + '°. It actually lands at θ ≈ ' + targetDeg + '°.';
+      feedback.className = 'mono bad';
+    }
+    drawChallenge();
+  }
+
+  challengeCanvas.addEventListener('click', function(e){
+    if (!challenge.active) return;
+    var rect = challengeCanvas.getBoundingClientRect();
+    var x = e.clientX - rect.left - rect.width/2;
+    var y = e.clientY - rect.top - rect.height/2;
+    challenge.guess = Math.atan2(-y, x);
+    challenge.revealed = false;
+    drawChallenge();
+  });
+
+  newChallengeBtn.addEventListener('click', newChallenge);
+  revealBtn.addEventListener('click', revealChallenge);
+
+  // ---------- init ----------
+  updateGeneralLabels();
+  redrawAll();
+  drawChallenge();
+})();
+</script>
+
+</body></html>

@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A Rotating Vector Becomes a Wave</title>
+<style>
+  :root{
+    --bg-0:#0b1220;
+    --bg-1:#111a2e;
+    --panel:#141f38;
+    --panel-2:#182545;
+    --border:#26365c;
+    --text:#eaf0ff;
+    --text-dim:#9fb0d9;
+    --accent:#5ee6c9;
+    --accent-2:#ffb454;
+    --accent-3:#ff6b9d;
+    --grid:#22315a;
+    --axis:#4a5c8f;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:radial-gradient(circle at 50% 0%, var(--bg-1), var(--bg-0) 65%);
+    color:var(--text);
+    font-family:'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap{
+    max-width:1400px;
+    margin:0 auto;
+    padding:20px 24px 40px;
+  }
+  header{
+    text-align:center;
+    margin-bottom:18px;
+  }
+  header h1{
+    font-size:clamp(24px, 3vw, 38px);
+    margin:0 0 6px 0;
+    letter-spacing:0.5px;
+  }
+  header h1 span{ color:var(--accent); }
+  header p{
+    margin:0;
+    color:var(--text-dim);
+    font-size:clamp(14px, 1.4vw, 18px);
+  }
+
+  .panels{
+    display:flex;
+    gap:20px;
+    flex-wrap:wrap;
+    justify-content:center;
+    align-items:flex-start;
+    margin-top:10px;
+  }
+  .panel{
+    background:linear-gradient(180deg, var(--panel), var(--panel-2));
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:16px 18px 18px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.35);
+    position:relative;
+  }
+  .panel h2{
+    margin:0 0 10px 0;
+    font-size:16px;
+    font-weight:600;
+    color:var(--text-dim);
+    text-transform:uppercase;
+    letter-spacing:1px;
+  }
+  canvas{
+    display:block;
+    border-radius:10px;
+    background:#0d1526;
+  }
+
+  .readout-row{
+    display:flex;
+    gap:14px;
+    margin-top:14px;
+    flex-wrap:wrap;
+  }
+  .stat{
+    flex:1;
+    min-width:100px;
+    background:rgba(255,255,255,0.03);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:10px 12px;
+    text-align:center;
+  }
+  .stat .label{
+    font-size:12px;
+    color:var(--text-dim);
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    margin-bottom:4px;
+  }
+  .stat .value{
+    font-size:clamp(18px, 2.2vw, 26px);
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+  }
+  .stat.theta .value{ color:var(--accent-2); }
+  .stat.x .value{ color:var(--accent); }
+  .stat.y .value{ color:var(--accent-3); }
+
+  .overlay{
+    position:absolute;
+    inset:16px;
+    top:48px;
+    background:rgba(9,14,28,0.92);
+    border-radius:12px;
+    display:none;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:24px;
+    z-index:5;
+    backdrop-filter: blur(2px);
+  }
+  .overlay.active{ display:flex; }
+  .overlay h3{
+    margin:0 0 12px 0;
+    color:var(--accent-2);
+    font-size:20px;
+  }
+  .overlay .challenge-eq{
+    font-size:clamp(18px,2.2vw,26px);
+    font-weight:700;
+    background:rgba(255,255,255,0.05);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:12px 18px;
+    margin:10px 0 16px 0;
+  }
+  .overlay p.hint{
+    color:var(--text-dim);
+    max-width:420px;
+    margin:0 0 18px 0;
+    font-size:14px;
+  }
+
+  .equation-bar{
+    text-align:center;
+    margin:22px auto 0;
+    max-width:900px;
+    background:linear-gradient(180deg, var(--panel), var(--panel-2));
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:16px 20px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.35);
+  }
+  .equation-bar .eq-template{
+    font-size:clamp(20px, 2.6vw, 30px);
+    font-weight:700;
+    letter-spacing:0.5px;
+  }
+  .equation-bar .eq-template .A{ color:var(--accent-2); }
+  .equation-bar .eq-template .w{ color:var(--accent); }
+  .equation-bar .eq-template .p{ color:var(--accent-3); }
+  .equation-bar .eq-values{
+    margin-top:6px;
+    color:var(--text-dim);
+    font-size:clamp(13px, 1.4vw, 16px);
+    font-variant-numeric:tabular-nums;
+  }
+
+  .controls{
+    margin-top:22px;
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+    gap:16px;
+    max-width:1400px;
+  }
+  .control{
+    background:linear-gradient(180deg, var(--panel), var(--panel-2));
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:14px 16px;
+  }
+  .control label{
+    display:flex;
+    justify-content:space-between;
+    font-size:14px;
+    color:var(--text-dim);
+    margin-bottom:8px;
+  }
+  .control label b{ color:var(--text); font-weight:600; }
+  .control input[type=range]{
+    width:100%;
+    accent-color:var(--accent);
+    height:6px;
+  }
+
+  .buttons-row{
+    margin-top:18px;
+    display:flex;
+    gap:12px;
+    justify-content:center;
+    flex-wrap:wrap;
+  }
+  button{
+    font-family:inherit;
+    font-size:15px;
+    font-weight:600;
+    padding:12px 22px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:var(--panel-2);
+    color:var(--text);
+    cursor:pointer;
+    transition:transform 0.08s ease, background 0.15s ease, border-color 0.15s ease;
+  }
+  button:hover{ transform:translateY(-1px); border-color:var(--accent); }
+  button:active{ transform:translateY(0px) scale(0.98); }
+  button.primary{
+    background:linear-gradient(180deg, #1f8f78, #167a66);
+    border-color:#1f8f78;
+    color:#06231d;
+  }
+  button.primary b{color:#06231d;}
+  button.warn{
+    background:linear-gradient(180deg, #7a4a1f, #5c3714);
+    border-color:#7a4a1f;
+  }
+  button.challenge{
+    background:linear-gradient(180deg, #6b2c5c, #4d1f43);
+    border-color:#6b2c5c;
+  }
+  button.reveal{
+    background:linear-gradient(180deg, #b6892a, #8a6620);
+    border-color:#b6892a;
+  }
+
+  footer{
+    text-align:center;
+    color:var(--text-dim);
+    font-size:12px;
+    margin-top:26px;
+  }
+
+  @media (max-width:900px){
+    .panels{ flex-direction:column; align-items:center; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>A Rotating Vector Becomes a <span>Wave</span></h1>
+    <p>From GCSE trigonometry &amp; circular motion to the sinusoidal wave — the first step toward Euler's formula.</p>
+  </header>
+
+  <div class="panels">
+
+    <div class="panel" id="circlePanel">
+      <h2>Unit Circle — Rotating Vector</h2>
+      <canvas id="circleCanvas" width="440" height="440"></canvas>
+      <div class="readout-row">
+        <div class="stat theta">
+          <div class="label">θ (angle)</div>
+          <div class="value" id="thetaVal">0.00 rad</div>
+        </div>
+        <div class="stat x">
+          <div class="label">x = cos θ</div>
+          <div class="value" id="xVal">1.00</div>
+        </div>
+        <div class="stat y">
+          <div class="label">y = sin θ</div>
+          <div class="value" id="yVal">0.00</div>
+        </div>
+      </div>
+      <div class="overlay" id="circleOverlay">
+        <h3>Challenge Mode</h3>
+        <div class="challenge-eq" id="challengeEq">x(t) = 1.5 cos(2t + 0.79)</div>
+        <p class="hint">Sketch or picture the wave this rotating vector will trace: how tall, how fast, and where does it start? Press <b>Reveal</b> when ready.</p>
+        <button class="reveal" id="revealBtn">Reveal ▶</button>
+      </div>
+    </div>
+
+    <div class="panel" id="wavePanel">
+      <h2>Live Cosine Wave — x(t) = A cos(ωt + φ)</h2>
+      <canvas id="waveCanvas" width="700" height="440"></canvas>
+      <div class="readout-row">
+        <div class="stat">
+          <div class="label">Time t</div>
+          <div class="value" id="tVal">0.00 s</div>
+        </div>
+        <div class="stat">
+          <div class="label">Period T</div>
+          <div class="value" id="periodVal">6.28 s</div>
+        </div>
+        <div class="stat">
+          <div class="label">Current x(t)</div>
+          <div class="value" id="waveVal">1.00</div>
+        </div>
+      </div>
+      <div class="overlay" id="waveOverlay">
+        <p style="color:var(--text-dim); font-size:15px;">Wave hidden until you reveal it.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="equation-bar">
+    <div class="eq-template">
+      x(t) = <span class="A" id="eqA">1.0</span> · cos( <span class="w" id="eqW">1.0</span> t + <span class="p" id="eqP">0.00</span> )
+    </div>
+    <div class="eq-values" id="eqValues">Amplitude A = 1.0 &nbsp;|&nbsp; Angular frequency ω = 1.0 rad/s &nbsp;|&nbsp; Phase φ = 0.00 rad</div>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label>Frequency / rotation speed (ω) <b id="wLabel">1.0 rad/s</b></label>
+      <input type="range" id="wSlider" min="0.3" max="4" step="0.05" value="1.0">
+    </div>
+    <div class="control">
+      <label>Amplitude / radius (A) <b id="aLabel">1.0</b></label>
+      <input type="range" id="aSlider" min="0.4" max="1.4" step="0.05" value="1.0">
+    </div>
+    <div class="control">
+      <label>Starting phase (φ) <b id="pLabel">0.00 rad</b></label>
+      <input type="range" id="pSlider" min="-3.1416" max="3.1416" step="0.0175" value="0">
+    </div>
+  </div>
+
+  <div class="buttons-row">
+    <button class="primary" id="playBtn"><b>▶ Play</b></button>
+    <button id="resetBtn">⟲ Reset</button>
+    <button class="challenge" id="challengeBtn">🎯 Challenge Mode</button>
+    <button class="warn" id="newChallengeBtn" style="display:none;">🔀 New Challenge</button>
+  </div>
+
+  <footer>Audio Signal Processing ECA &middot; Rotating vector &amp; sinusoidal waves &middot; no external libraries, works offline</footer>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- state ----------
+  const state = {
+    t: 0,
+    running: false,
+    omega: 1.0,
+    amplitude: 1.0,
+    phase: 0.0,
+    challengeMode: false,
+    revealed: false,
+    lastFrameTime: null
+  };
+
+  // ---------- DOM ----------
+  const circleCanvas = document.getElementById('circleCanvas');
+  const waveCanvas   = document.getElementById('waveCanvas');
+  const cctx = circleCanvas.getContext('2d');
+  const wctx = waveCanvas.getContext('2d');
+
+  const thetaVal = document.getElementById('thetaVal');
+  const xVal = document.getElementById('xVal');
+  const yVal = document.getElementById('yVal');
+  const tVal = document.getElementById('tVal');
+  const periodVal = document.getElementById('periodVal');
+  const waveVal = document.getElementById('waveVal');
+
+  const eqA = document.getElementById('eqA');
+  const eqW = document.getElementById('eqW');
+  const eqP = document.getElementById('eqP');
+  const eqValues = document.getElementById('eqValues');
+
+  const wSlider = document.getElementById('wSlider');
+  const aSlider = document.getElementById('aSlider');
+  const pSlider = document.getElementById('pSlider');
+  const wLabel = document.getElementById('wLabel');
+  const aLabel = document.getElementById('aLabel');
+  const pLabel = document.getElementById('pLabel');
+
+  const playBtn = document.getElementById('playBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const challengeBtn = document.getElementById('challengeBtn');
+  const newChallengeBtn = document.getElementById('newChallengeBtn');
+  const revealBtn = document.getElementById('revealBtn');
+
+  const circleOverlay = document.getElementById('circleOverlay');
+  const waveOverlay = document.getElementById('waveOverlay');
+  const challengeEq = document.getElementById('challengeEq');
+
+  // ---------- helpers ----------
+  function fmt(n, d){ return Number(n).toFixed(d===undefined?2:d); }
+
+  function phaseAsFraction(phi){
+    // pretty-print common phase values as fractions of pi
+    const pi = Math.PI;
+    const ratio = phi / pi;
+    const known = [
+      [0,'0'], [0.5,'π/2'], [-0.5,'-π/2'], [1,'π'], [-1,'-π'],
+      [0.25,'π/4'], [-0.25,'-π/4'], [1/3,'π/3'], [-1/3,'-π/3']
+    ];
+    for (const [r, label] of known){
+      if (Math.abs(ratio - r) < 0.01) return label;
+    }
+    return fmt(phi,2) + ' rad';
+  }
+
+  function syncSliderLabels(){
+    wLabel.textContent = fmt(state.omega,2) + ' rad/s';
+    aLabel.textContent = fmt(state.amplitude,2);
+    pLabel.textContent = fmt(state.phase,2) + ' rad';
+    eqA.textContent = fmt(state.amplitude,2);
+    eqW.textContent = fmt(state.omega,2);
+    eqP.textContent = fmt(state.phase,2);
+    eqValues.textContent =
+      'Amplitude A = ' + fmt(state.amplitude,2) +
+      '  |  Angular frequency ω = ' + fmt(state.omega,2) + ' rad/s' +
+      '  |  Phase φ = ' + fmt(state.phase,2) + ' rad (' + phaseAsFraction(state.phase) + ')';
+    periodVal.textContent = fmt(2*Math.PI/state.omega, 2) + ' s';
+  }
+
+  // ---------- drawing: unit circle ----------
+  function drawCircle(){
+    const W = circleCanvas.width, H = circleCanvas.height;
+    cctx.clearRect(0,0,W,H);
+
+    const cx = W/2, cy = H/2;
+    const baseRadius = 90;
+    const R = baseRadius * state.amplitude;
+
+    const theta = state.omega * state.t + state.phase;
+    const x = Math.cos(theta);
+    const y = Math.sin(theta);
+
+    // px position (canvas y grows downward, so flip y)
+    const px = cx + R * x;
+    const py = cy - R * y;
+
+    // grid
+    cctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    cctx.lineWidth = 1;
+    for (let gx = 0; gx <= W; gx += 40){
+      cctx.beginPath(); cctx.moveTo(gx,0); cctx.lineTo(gx,H); cctx.stroke();
+    }
+    for (let gy = 0; gy <= H; gy += 40){
+      cctx.beginPath(); cctx.moveTo(0,gy); cctx.lineTo(W,gy); cctx.stroke();
+    }
+
+    // axes
+    cctx.strokeStyle = 'var(--axis)';
+    cctx.strokeStyle = '#4a5c8f';
+    cctx.lineWidth = 1.5;
+    cctx.beginPath(); cctx.moveTo(20,cy); cctx.lineTo(W-20,cy); cctx.stroke();
+    cctx.beginPath(); cctx.moveTo(cx,20); cctx.lineTo(cx,H-20); cctx.stroke();
+    cctx.fillStyle = '#7f93c9';
+    cctx.font = '13px Segoe UI';
+    cctx.fillText('x', W-30, cy-8);
+    cctx.fillText('y', cx+8, 28);
+
+    // fixed max circle (radius reference at amplitude 1) — dim
+    cctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    cctx.lineWidth = 1;
+    cctx.beginPath();
+    cctx.arc(cx, cy, baseRadius, 0, Math.PI*2);
+    cctx.stroke();
+
+    // actual circle (current radius)
+    cctx.strokeStyle = 'rgba(94,230,201,0.5)';
+    cctx.lineWidth = 2;
+    cctx.beginPath();
+    cctx.arc(cx, cy, R, 0, Math.PI*2);
+    cctx.stroke();
+
+    // dashed projection: vertical drop to x-axis (shows x = cos θ)
+    cctx.save();
+    cctx.setLineDash([6,5]);
+    cctx.strokeStyle = 'rgba(94,230,201,0.85)';
+    cctx.lineWidth = 2;
+    cctx.beginPath();
+    cctx.moveTo(px, py);
+    cctx.lineTo(px, cy);
+    cctx.stroke();
+
+    // dashed projection: horizontal drop to y-axis (shows y = sin θ), dimmer
+    cctx.strokeStyle = 'rgba(255,107,157,0.5)';
+    cctx.lineWidth = 1.5;
+    cctx.beginPath();
+    cctx.moveTo(px, py);
+    cctx.lineTo(cx, py);
+    cctx.stroke();
+    cctx.restore();
+
+    // marker on x-axis showing x-value
+    cctx.fillStyle = '#5ee6c9';
+    cctx.beginPath();
+    cctx.arc(px, cy, 5, 0, Math.PI*2);
+    cctx.fill();
+
+    // radius vector
+    cctx.strokeStyle = '#ffb454';
+    cctx.lineWidth = 3;
+    cctx.beginPath();
+    cctx.moveTo(cx, cy);
+    cctx.lineTo(px, py);
+    cctx.stroke();
+
+    // rotating point
+    cctx.fillStyle = '#ffffff';
+    cctx.beginPath();
+    cctx.arc(px, py, 7, 0, Math.PI*2);
+    cctx.fill();
+    cctx.strokeStyle = '#ffb454';
+    cctx.lineWidth = 2;
+    cctx.stroke();
+
+    // theta arc
+    cctx.strokeStyle = 'rgba(255,180,84,0.7)';
+    cctx.lineWidth = 2;
+    cctx.beginPath();
+    cctx.arc(cx, cy, 30, -theta, 0, theta > 0);
+    cctx.stroke();
+
+    return { px, py, cx, cy, x, y, theta, R };
+  }
+
+  // ---------- drawing: wave graph ----------
+  function drawWave(circleInfo){
+    const W = waveCanvas.width, H = waveCanvas.height;
+    wctx.clearRect(0,0,W,H);
+
+    const marginL = 50, marginR = 30;
+    const midY = H/2;
+    const pxPerSec = 55; // horizontal scale
+    const window = (W - marginL - marginR) / pxPerSec; // seconds visible
+    const t0 = Math.max(0, state.t - window);
+    const baseAmpPx = (H/2 - 40);
+
+    // grid
+    wctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    wctx.lineWidth = 1;
+    for (let gx = marginL; gx <= W-marginR; gx += pxPerSec){
+      wctx.beginPath(); wctx.moveTo(gx,0); wctx.lineTo(gx,H); wctx.stroke();
+    }
+    for (let gy = 0; gy <= H; gy += 40){
+      wctx.beginPath(); wctx.moveTo(0,gy); wctx.lineTo(W,gy); wctx.stroke();
+    }
+
+    // axes
+    wctx.strokeStyle = '#4a5c8f';
+    wctx.lineWidth = 1.5;
+    wctx.beginPath(); wctx.moveTo(marginL, midY); wctx.lineTo(W-marginR, midY); wctx.stroke();
+    wctx.beginPath(); wctx.moveTo(marginL, 20); wctx.lineTo(marginL, H-20); wctx.stroke();
+    wctx.fillStyle = '#7f93c9';
+    wctx.font = '13px Segoe UI';
+    wctx.fillText('t →', W-marginR-20, midY-10);
+    wctx.fillText('x(t)', marginL+6, 26);
+
+    // amplitude reference lines
+    wctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    wctx.setLineDash([3,4]);
+    wctx.beginPath();
+    wctx.moveTo(marginL, midY - baseAmpPx*state.amplitude); wctx.lineTo(W-marginR, midY - baseAmpPx*state.amplitude);
+    wctx.moveTo(marginL, midY + baseAmpPx*state.amplitude); wctx.lineTo(W-marginR, midY + baseAmpPx*state.amplitude);
+    wctx.stroke();
+    wctx.setLineDash([]);
+
+    // curve
+    wctx.strokeStyle = '#5ee6c9';
+    wctx.lineWidth = 3;
+    wctx.beginPath();
+    let first = true;
+    const step = 1/240;
+    for (let tau = t0; tau <= state.t + 1e-9; tau += step){
+      const val = state.amplitude * Math.cos(state.omega*tau + state.phase);
+      const cxp = marginL + (tau - t0) * pxPerSec;
+      const cyp = midY - val * baseAmpPx;
+      if (first){ wctx.moveTo(cxp, cyp); first = false; }
+      else wctx.lineTo(cxp, cyp);
+    }
+    wctx.stroke();
+
+    // current point
+    const curVal = state.amplitude * Math.cos(state.omega*state.t + state.phase);
+    const curX = marginL + (state.t - t0) * pxPerSec;
+    const curY = midY - curVal * baseAmpPx;
+    wctx.fillStyle = '#ffffff';
+    wctx.beginPath();
+    wctx.arc(curX, curY, 6, 0, Math.PI*2);
+    wctx.fill();
+    wctx.strokeStyle = '#5ee6c9';
+    wctx.lineWidth = 2;
+    wctx.stroke();
+
+    waveVal.textContent = fmt(curVal,2);
+
+    // connector guide line from the rotating vector's point to the live wave sample
+    // (drawn across the DOM gap using a fixed overlay canvas would need extra plumbing;
+    //  instead we draw a short indicator arrow at the edge of each canvas)
+    return { curX, curY };
+  }
+
+  function drawConnector(){
+    // Visual bridge: a short glowing tick at the right edge of the circle panel
+    // and left edge of the wave panel, pulsing together, to cue "same value, same instant".
+  }
+
+  // ---------- main loop ----------
+  function render(){
+    const info = drawCircle();
+    drawWave(info);
+
+    const theta = state.omega*state.t + state.phase;
+    thetaVal.textContent = fmt(theta,2) + ' rad';
+    xVal.textContent = fmt(Math.cos(theta),2);
+    yVal.textContent = fmt(Math.sin(theta),2);
+    tVal.textContent = fmt(state.t,2) + ' s';
+  }
+
+  function tick(now){
+    if (state.lastFrameTime === null) state.lastFrameTime = now;
+    const dt = (now - state.lastFrameTime) / 1000;
+    state.lastFrameTime = now;
+
+    if (state.running){
+      state.t += dt;
+    }
+    render();
+    requestAnimationFrame(tick);
+  }
+
+  // ---------- controls ----------
+  function setPlaying(playing){
+    state.running = playing;
+    playBtn.innerHTML = playing ? '<b>⏸ Pause</b>' : '<b>▶ Play</b>';
+  }
+
+  playBtn.addEventListener('click', () => setPlaying(!state.running));
+
+  resetBtn.addEventListener('click', () => {
+    state.t = 0;
+    setPlaying(false);
+    render();
+  });
+
+  wSlider.addEventListener('input', () => {
+    state.omega = parseFloat(wSlider.value);
+    syncSliderLabels();
+  });
+  aSlider.addEventListener('input', () => {
+    state.amplitude = parseFloat(aSlider.value);
+    syncSliderLabels();
+  });
+  pSlider.addEventListener('input', () => {
+    state.phase = parseFloat(pSlider.value);
+    syncSliderLabels();
+  });
+
+  // ---------- challenge mode ----------
+  const challengeOptions = {
+    omega: [0.5, 1, 1.5, 2, 3],
+    amplitude: [0.5, 0.8, 1.0, 1.2, 1.4],
+    phase: [0, Math.PI/4, Math.PI/2, Math.PI, -Math.PI/2, -Math.PI/4]
+  };
+
+  function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+  function newChallenge(){
+    const w = pick(challengeOptions.omega);
+    const a = pick(challengeOptions.amplitude);
+    const p = pick(challengeOptions.phase);
+
+    state.omega = w;
+    state.amplitude = a;
+    state.phase = p;
+    wSlider.value = w;
+    aSlider.value = a;
+    pSlider.value = p;
+    syncSliderLabels();
+
+    challengeEq.textContent = 'x(t) = ' + fmt(a,2) + ' cos(' + fmt(w,2) + 't + ' + phaseAsFraction(p) + ')';
+
+    state.t = 0;
+    setPlaying(false);
+    state.revealed = false;
+    circleOverlay.classList.add('active');
+    waveOverlay.classList.add('active');
+    render();
+  }
+
+  function enterChallenge(){
+    state.challengeMode = true;
+    challengeBtn.style.display = 'none';
+    newChallengeBtn.style.display = 'inline-block';
+    wSlider.disabled = true;
+    aSlider.disabled = true;
+    pSlider.disabled = true;
+    newChallenge();
+  }
+
+  function exitChallenge(){
+    state.challengeMode = false;
+    challengeBtn.style.display = 'inline-block';
+    newChallengeBtn.style.display = 'none';
+    wSlider.disabled = false;
+    aSlider.disabled = false;
+    pSlider.disabled = false;
+    circleOverlay.classList.remove('active');
+    waveOverlay.classList.remove('active');
+    setPlaying(false);
+    state.t = 0;
+    render();
+  }
+
+  challengeBtn.addEventListener('click', enterChallenge);
+  newChallengeBtn.addEventListener('click', newChallenge);
+
+  revealBtn.addEventListener('click', () => {
+    state.revealed = true;
+    circleOverlay.classList.remove('active');
+    waveOverlay.classList.remove('active');
+    state.t = 0;
+    setPlaying(true);
+  });
+
+  // long-press / double-click on challenge button area to fully exit challenge mode
+  newChallengeBtn.addEventListener('dblclick', exitChallenge);
+  challengeBtn.title = 'Enter challenge mode';
+  newChallengeBtn.title = 'Get a new random challenge (double-click to exit challenge mode)';
+
+  // ---------- init ----------
+  syncSliderLabels();
+  render();
+  requestAnimationFrame(tick);
+
+})();
+</script>
+</body>
+</html>
