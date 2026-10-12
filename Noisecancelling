@@ -22,6 +22,7 @@
 
   <div class="status">
     <span id="pill" class="pill" role="status" aria-live="polite"></span>
+    <button type="button" class="btn sound-btn" aria-pressed="false">Sound: off</button>
     <button type="button" class="btn" id="btn-pause">Pause</button>
     <button type="button" class="btn" id="btn-theme" aria-label="Switch light or dark theme">Theme</button>
   </div>
@@ -106,7 +107,11 @@
   <!-- 5 · BEFORE / AFTER -->
   <section id="output" aria-labelledby="h-output">
     <h2 id="h-output">2 · Before / after: what reaches your ear</h2>
-    <p class="lede">Flip the switch to hear the difference. The grey outline is what you'd get with cancelling off.</p>
+    <p class="lede">Turn the sound on, then flip the switch to hear the difference. The grey outline is what you'd get with cancelling off.</p>
+    <div class="sound-row">
+      <button type="button" class="btn sound-btn" aria-pressed="false">Sound: off</button>
+      <span class="sound-note">Plays the simulated noise and a short melody. Start with your volume low. Headphones show the low hum best.</span>
+    </div>
 
     <div class="seg big anc-toggle" role="group" aria-label="Noise cancelling before and after">
       <button type="button" data-anc="off" aria-pressed="false">Noise cancelling OFF</button>
