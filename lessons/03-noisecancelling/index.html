@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Noise Cancelling Lab</title>
 <meta name="description" content="An interactive simulator that explains how active noise cancelling works.">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=20261013">
 </head>
 <body>
 
@@ -22,7 +22,7 @@
 
   <div class="status">
     <span id="pill" class="pill" role="status" aria-live="polite"></span>
-    <button type="button" class="btn" id="btn-pause">Pause</button>
+    <button type="button" class="btn" id="btn-pause" aria-pressed="false">Pause waves</button>
     <button type="button" class="btn" id="btn-theme" aria-label="Switch light or dark theme">Theme</button>
   </div>
 </header>
@@ -63,7 +63,24 @@
 
   <!-- CONTROLS (sticky column on wide screens) -->
   <aside class="controls" aria-label="Controls">
-    <h2 class="sr-only">Controls</h2>
+    <h2>Experiment controls</h2>
+
+    <div class="ctl audio-card" style="--c: var(--anti)">
+      <div class="ctl-top"><h3>Listen to the experiment</h3><span class="audio-dot" id="audio-dot" aria-hidden="true"></span></div>
+      <div class="audio-actions">
+        <button type="button" class="btn primary" id="btn-audio" aria-pressed="false">Start listening</button>
+        <button type="button" class="btn" id="btn-mute" aria-pressed="false">Mute</button>
+      </div>
+      <label for="ctl-source">Listening source</label>
+      <select id="ctl-source">
+        <option value="main">Main simulator · follows ANC switch</option>
+        <option value="timing">Timing test · independent of ANC switch</option>
+      </select>
+      <div class="ctl-top"><label for="ctl-listen">Playback volume</label><output id="o-listen">20%</output></div>
+      <input type="range" id="ctl-listen" min="0" max="100" step="1" value="20" aria-describedby="audio-hint">
+      <p id="audio-status" class="audio-status" role="status" aria-live="polite">Sound is off. Start listening to compare.</p>
+      <p class="hint" id="audio-hint">Synthesized tones and noise, using the same model as the waves. The wanted sound is a musical tone. Playback volume does not change the experiment.</p>
+    </div>
 
     <div class="ctl" style="--c: var(--noise)">
       <div class="ctl-top"><span class="ctl-name" id="l-type">Noise type</span><output id="v-pred" class="pred"></output></div>
@@ -106,7 +123,7 @@
   <!-- 5 · BEFORE / AFTER -->
   <section id="output" aria-labelledby="h-output">
     <h2 id="h-output">2 · Before / after: what reaches your ear</h2>
-    <p class="lede">Flip the switch to hear the difference. The grey outline is what you'd get with cancelling off.</p>
+    <p class="lede">Start listening in Experiment controls, then flip the ANC switch to hear the difference. The grey outline is what you'd get with cancelling off.</p>
 
     <div class="seg big anc-toggle" role="group" aria-label="Noise cancelling before and after">
       <button type="button" data-anc="off" aria-pressed="false">Noise cancelling OFF</button>
@@ -121,12 +138,13 @@
       <canvas class="cv tall" data-cv="out" role="img" aria-label="Animated output waveform at the listener's ear"></canvas>
     </div>
 
-    <div class="legend" aria-hidden="true">
+    <div class="legend">
       <span class="key c-out"><i></i>Output</span>
       <span class="key c-wanted"><i class="dashed"></i>Wanted sound alone</span>
       <span class="key c-ghost"><i class="dashed"></i>Output with ANC off</span>
     </div>
 
+    <p class="meter-label">Noise RMS · relative to the original noise (ANC off = 100%)</p>
     <div class="meters">
       <div class="meter c-noise">
         <span>ANC off</span>
@@ -173,14 +191,14 @@
   <!-- 3 · ANTI-NOISE DEMO -->
   <section id="anti" aria-labelledby="h-anti">
     <h2 id="h-anti">4 · Anti-noise: the upside-down wave</h2>
-    <p class="lede">Compare the dotted markers. Where the noise has a peak, the anti-noise has a dip, and the other way round. Added together they make a flat line.</p>
+    <p class="lede">Compare the dotted markers. Perfectly opposite waves of equal strength cancel to a flat line. In this model, prediction errors, strength mismatch or delay can leave noise behind.</p>
 
     <div class="lane c-noise">
       <div class="lane-head"><span class="dot"></span><h3>Original noise</h3></div>
       <canvas class="cv" data-cv="demo-noise" role="img" aria-label="Noise waveform with markers"></canvas>
     </div>
     <div class="lane c-anti">
-      <div class="lane-head"><span class="dot"></span><h3>Anti-noise</h3><span class="lane-note">Same shape, flipped upside-down (dashed = a perfect flip)</span></div>
+      <div class="lane-head"><span class="dot"></span><h3>Anti-noise</h3><span class="lane-note">Solid = generated anti-noise; dashed = ideal opposite of all the noise</span></div>
       <canvas class="cv" data-cv="demo-anti" role="img" aria-label="Inverted anti-noise waveform with markers"></canvas>
     </div>
     <div class="lane c-out">
@@ -204,7 +222,7 @@
         <button type="button" class="btn" data-phase="90">Quarter wave · 90°</button>
         <button type="button" class="btn" data-phase="180">Half wave · 180°</button>
       </div>
-      <p class="hint">360° is one full wave cycle (8.3 ms for this hum). Uses the anti-noise strength from the controls.</p>
+      <p class="hint">This is an independent test: the main ANC switch and noise volume do not affect it. 360° is one full wave cycle (8.3 ms for this hum). Uses the anti-noise strength from the controls.</p>
     </div>
 
     <div class="lane c-noise">
@@ -229,7 +247,7 @@
       <figure>
         <figcaption>Leftover hum vs. how late the anti-noise is</figcaption>
         <canvas class="cv chart" data-cv="chart-tone" role="img" aria-label="Chart of leftover noise against timing error for the test hum"></canvas>
-        <p class="chart-note">Green dips below 1× are cancellation. Red rises above 1× are noise made <em>worse</em>. Break-even is about 60° late.</p>
+        <p class="chart-note" id="chart-tone-note"></p>
       </figure>
       <figure>
         <figcaption>Same test with your selected noise type</figcaption>
@@ -238,7 +256,11 @@
       </figure>
     </div>
 
-    <button type="button" class="btn" id="btn-apply">Try this delay in the main simulator</button>
+    <div class="experiment-actions">
+      <button type="button" class="btn" id="btn-listen-tone">Listen to this timing test</button>
+      <button type="button" class="btn" id="btn-apply">Apply delay to the main fan preset</button>
+    </div>
+    <p class="chart-note">The fan preset includes harmonics and randomness; its result can differ from this pure 120 Hz tone.</p>
   </section>
 
   <!-- 7 · LOGIC PANEL -->
@@ -263,6 +285,6 @@
 
 </main>
 
-<script src="app.js"></script>
+<script type="module" src="app.js?v=20261013"></script>
 </body>
 </html>
