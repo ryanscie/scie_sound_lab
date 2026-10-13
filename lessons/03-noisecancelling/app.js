@@ -113,105 +113,6 @@ import { TAU, TONE_KHZ, TONE_PERIOD, TONE_AMP, NOISE, wantedWave, noiseUnit, for
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
-  const audio = { context: null, node: null, gain: null, playing: false, busy: false, muted: false, volume: 0.2, source: 'main', error: '' };
-  const audioSettings = () => ({ ...state, source: audio.source });
-  function updateAudioGain() {
-    if (!audio.gain) return;
-    const now = audio.context.currentTime;
-    const param = audio.gain.gain;
-    if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(now);
-    else {
-      param.cancelScheduledValues(now);
-      param.setValueAtTime(param.value, now);
-    }
-    // Fixed headroom preserves the before/after comparison even at 150% strength.
-    param.linearRampToValueAtTime(audio.playing && !audio.muted ? audio.volume * 0.15 : 0, now + 0.025);
-  }
-  function syncAudio() {
-    audio.node?.port.postMessage(audioSettings());
-    renderAudio();
-  }
-  function renderAudio() {
-    $('#btn-audio').disabled = audio.busy;
-    $('#btn-audio').textContent = audio.busy ? 'Please wait…' : audio.playing ? 'Stop listening' : 'Start listening';
-    $('#btn-audio').setAttribute('aria-pressed', String(audio.playing));
-    $('#btn-audio-header').disabled = audio.busy;
-    $('#btn-audio-header').textContent = audio.busy ? 'Loading…' : audio.playing ? 'Stop audio' : 'Listen';
-    $('#btn-audio-header').setAttribute('aria-pressed', String(audio.playing));
-    $('#btn-mute').textContent = audio.muted ? 'Unmute' : 'Mute';
-    $('#btn-mute').setAttribute('aria-pressed', String(audio.muted));
-    $('#ctl-source').value = audio.source;
-    $('#o-listen').textContent = pct(audio.volume) + '%';
-    $('#audio-dot').dataset.playing = String(audio.playing && !audio.muted && audio.volume > 0);
-    const status = $('#audio-status');
-    const source = audio.source === 'timing' ? '120 Hz timing test · independent of ANC switch' : `${ST().label} + wanted tone · ANC ${state.anc ? 'on' : 'off'}`;
-    status.textContent = audio.error || (audio.playing
-      ? audio.context?.state !== 'running' ? 'Playback interrupted. Stop and start listening to resume.'
-        : `${audio.muted || audio.volume === 0 ? 'Muted' : 'Listening'}: ${source}.`
-      : 'Sound is off. Start listening to compare.');
-    status.dataset.error = String(Boolean(audio.error));
-  }
-  async function setListening(playing) {
-    if (audio.busy) return;
-    audio.busy = true;
-    audio.error = '';
-    renderAudio();
-    try {
-      if (playing) {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (!window.isSecureContext || !AudioContextClass || !window.AudioWorkletNode) {
-          throw new Error('Audio needs a browser with Web Audio support, on HTTPS or localhost.');
-        }
-        if (!audio.context) {
-          audio.context = new AudioContextClass();
-          audio.context.addEventListener('statechange', renderAudio);
-        }
-        // Resume during the button gesture, before asynchronously loading the worklet.
-        await audio.context.resume();
-        if (!audio.node) {
-          await audio.context.audioWorklet.addModule(new URL('./audio-worklet.js', import.meta.url));
-          audio.node = new AudioWorkletNode(audio.context, 'noise-lab', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [1] });
-          audio.gain = audio.context.createGain();
-          audio.gain.gain.value = 0;
-          audio.node.connect(audio.gain).connect(audio.context.destination);
-          audio.node.addEventListener('processorerror', () => {
-            audio.playing = false;
-            audio.error = 'Audio stopped unexpectedly. Start listening to retry.';
-            audio.node.disconnect();
-            audio.node = null;
-            audio.gain.disconnect();
-            audio.gain = null;
-            void audio.context.suspend();
-            renderAudio();
-          });
-        }
-        audio.playing = !document.hidden;
-        audio.node.port.postMessage(audioSettings());
-        updateAudioGain();
-        if (!audio.playing) await audio.context.suspend();
-      } else {
-        audio.playing = false;
-        updateAudioGain();
-        if (audio.context) {
-          await new Promise(resolve => setTimeout(resolve, 35));
-          await audio.context.suspend();
-        }
-      }
-    } catch (error) {
-      audio.playing = false;
-      audio.error = error.message.startsWith('Audio needs') ? error.message : 'Could not start audio. Check your browser and connection, then try again.';
-      if (audio.context) {
-        audio.node?.disconnect();
-        audio.gain?.disconnect();
-        await audio.context.close().catch(() => {});
-      }
-      audio.context = audio.node = audio.gain = null;
-    } finally {
-      audio.busy = false;
-      renderAudio();
-    }
-  }
-
   let COL = {};
   let dirty = true;
   let scroll = 0;
@@ -460,9 +361,7 @@ import { TAU, TONE_KHZ, TONE_PERIOD, TONE_AMP, NOISE, wantedWave, noiseUnit, for
   // Is the current delay hurting? Judged from the delay curve for this noise type.
   function timing() {
     const d = msText(state.delay);
-    if (state.noiseVol === 0) return { level: 'neutral', short: 'No noise to cancel', text: 'There is no background noise, so no anti-noise is needed.' };
     if (!state.anc) return { level: 'neutral', short: 'Cancelling is off', text: 'Cancelling is off, so timing does not matter yet.' };
-    if (state.strength === 0) return { level: 'neutral', short: 'No anti-noise', text: 'Anti-noise strength is zero. Delay cannot change the output.' };
     if (A.spread < 0.06) return { level: 'neutral', short: 'Timing barely matters here', text: 'Timing barely matters for this noise. There is no steady pattern to line up with.' };
     const lost = A.ratio - A.curve[0];
     if (lost < 0.08) return { level: 'good', short: 'On time', text: `A delay of ${d} is short enough that the anti-noise still lines up well.` };
@@ -495,11 +394,7 @@ import { TAU, TONE_KHZ, TONE_PERIOD, TONE_AMP, NOISE, wantedWave, noiseUnit, for
     $('#v-noise').textContent = 'volume ' + pct(state.noiseVol) + '%';
     $('#n-noise').textContent = ST().label + ': ' + ST().blurb.split('.')[0];
 
-    for (const b of $$('[data-type]')) {
-      const selected = b.dataset.type === state.type;
-      b.setAttribute('aria-checked', String(selected));
-      b.tabIndex = selected ? 0 : -1;
-    }
+    for (const b of $$('[data-type]')) b.setAttribute('aria-checked', String(b.dataset.type === state.type));
     for (const b of $$('[data-anc]')) b.setAttribute('aria-pressed', String((b.dataset.anc === 'on') === state.anc));
     $('#v-pred').textContent = pct(A.pred) + '% predictable';
     $('#h-type').textContent = ST().blurb;
@@ -507,7 +402,7 @@ import { TAU, TONE_KHZ, TONE_PERIOD, TONE_AMP, NOISE, wantedWave, noiseUnit, for
     $('#h-noise').textContent = state.noiseVol === 0
       ? 'No noise at all, nothing to cancel.'
       : 'Louder noise makes a bigger red wave. The anti-noise grows with it.';
-    $('#h-wanted').textContent = 'A synthesized musical tone you want to keep. Cancelling leaves it untouched in this model.';
+    $('#h-wanted').textContent = 'The music or voice you want to keep. Cancelling should leave this untouched.';
     $('#h-strength').textContent = state.strength < 0.9 ? 'Too weak: some noise is left over.'
       : state.strength > 1.1 ? 'Too strong: it over-shoots and flips the noise.'
       : 'Matched to the noise (100% = exact match).';
@@ -519,38 +414,32 @@ import { TAU, TONE_KHZ, TONE_PERIOD, TONE_AMP, NOISE, wantedWave, noiseUnit, for
   function renderOutput() {
     const g = grade(A.cut);
     const pill = $('#pill');
-    if (state.noiseVol === 0) {
-      pill.textContent = 'No noise · nothing to cancel';
-      pill.dataset.level = 'neutral';
-    } else if (state.anc) {
-      pill.textContent = A.cut >= 0 ? `Noise RMS −${pct(A.cut)}% · ${g.word}` : `Noise RMS +${pct(-A.cut)}% · Worse`;
+    if (state.anc) {
+      pill.textContent = A.cut >= 0 ? `Noise −${pct(A.cut)}% · ${g.word}` : `Noise +${pct(-A.cut)}% · Worse`;
       pill.dataset.level = g.level;
     } else {
       pill.textContent = 'ANC off · full noise';
-      pill.dataset.level = 'neutral';
+      pill.dataset.level = 'bad';
     }
 
-    const off = state.noiseVol === 0 ? 0 : 100, on = state.noiseVol === 0 ? 0 : pct(A.ratio);
-    const scale = Math.max(100, on);
-    $('#bar-off').style.width = off / scale * 100 + '%';
-    $('#bar-on').style.width = on / scale * 100 + '%';
+    const off = pct(state.noiseVol), on = pct(state.noiseVol * A.ratio);
+    $('#bar-off').style.width = off + '%';
+    $('#bar-on').style.width = Math.min(100, on) + '%';
     $('#m-off').textContent = off + '%';
     $('#m-on').textContent = on + '%';
     $('.meter.c-out').style.opacity = state.anc ? 1 : 0.45;
     $('.meter.c-noise').style.opacity = state.anc ? 0.6 : 1;
 
-    $('#n-out').textContent = state.noiseVol === 0 ? 'Wanted sound only · no background noise' : state.anc
+    $('#n-out').textContent = state.anc
       ? 'Wanted sound plus whatever noise is left'
-      : 'Wanted sound plus the original noise';
-    $('#m-caption').textContent = state.noiseVol === 0
-      ? 'No background noise: both noise meters are zero. Only the wanted sound remains.'
-      : !state.anc
-      ? 'ANC is OFF: the original noise reaches your ear. The dimmed ANC-on meter previews what these settings would produce.'
+      : 'Wanted sound buried in full-strength noise';
+    $('#m-caption').textContent = !state.anc
+      ? 'Noise cancelling is OFF: all of the noise reaches your ear, so the output is messy.'
       : A.cut >= 0
-        ? `ANC is ON: noise RMS is reduced by ${pct(A.cut)}% (${A.db.toFixed(1)} dB). ${g.word} cancellation. This measures signal amplitude, not perceived loudness.`
-        : `ANC is ON: noise RMS increases by ${pct(-A.cut)}% (+${A.db.toFixed(1)} dB). These settings make the noise worse.`;
-    $('#n-demo-result').textContent = state.noiseVol === 0 ? 'No noise or anti-noise: the residual is zero' : state.anc
-      ? (A.cut >= 0 ? `Residual noise RMS: ${pct(A.ratio)}% of the original` : `Residual noise RMS increased by ${pct(-A.cut)}%`)
+        ? `Noise cancelling is ON: ${pct(A.cut)}% of the noise is removed (${A.db.toFixed(0)} dB). ${g.word} cancellation.`
+        : `Noise cancelling is ON, but the noise is ${pct(-A.cut)}% louder. The anti-noise is hurting.`;
+    $('#n-demo-result').textContent = state.anc
+      ? (A.cut >= 0 ? `Noise + anti-noise leaves ${pct(A.ratio)}% of the original` : `Out of step: the noise got ${pct(-A.cut)}% louder`)
       : 'No anti-noise, so the result is just the noise';
   }
 
@@ -587,7 +476,7 @@ import { TAU, TONE_KHZ, TONE_PERIOD, TONE_AMP, NOISE, wantedWave, noiseUnit, for
     },
     {
       title: '6 · Reduced noise output',
-      body: 'What reaches your ear is the wanted sound plus the residual noise. A good match reduces the noise; a poor match can leave it unchanged or make it stronger.',
+      body: 'What reaches your ear is your music or voice plus a much quieter noise. Cancelling is never perfect, but steady sounds can drop a lot.',
       live: () => state.anc
         ? `Noise at your ear: ${pct(state.noiseVol)}% → ${pct(state.noiseVol * A.ratio)}% (${grade(A.cut).word.toLowerCase()}).`
         : `Noise at your ear: ${pct(state.noiseVol)}%, unchanged.`
@@ -598,8 +487,7 @@ import { TAU, TONE_KHZ, TONE_PERIOD, TONE_AMP, NOISE, wantedWave, noiseUnit, for
     const s = STAGES[state.stage];
     $('#sd-title').textContent = s.title;
     $('#sd-body').textContent = s.body;
-    $('#sd-live').textContent = 'In the simulator now: ' + (state.noiseVol === 0
-      ? 'There is no background noise. The anti-noise and residual noise are both zero; only the wanted sound remains.' : s.live());
+    $('#sd-live').textContent = 'In the simulator now: ' + s.live();
     for (const b of $$('.stage-btn')) b.setAttribute('aria-pressed', String(+b.dataset.stage === state.stage));
     $('#st-tour').setAttribute('aria-pressed', String(state.tour));
     $('#st-tour').textContent = state.tour ? '❚❚ Stop tour' : '▶ Auto tour';
@@ -614,37 +502,32 @@ import { TAU, TONE_KHZ, TONE_PERIOD, TONE_AMP, NOISE, wantedWave, noiseUnit, for
     $('#o-tone').textContent = `${state.tonePhase}° · ${ms.toFixed(1)} ms`;
     for (const b of $$('[data-phase]')) b.setAttribute('aria-pressed', String(+b.dataset.phase === state.tonePhase));
 
-    const threshold = breakEvenDegrees(state.strength);
-    const thresholdText = threshold === null
-      ? 'At zero strength there is no anti-noise: all delays leave the hum unchanged.'
-      : `At ${pct(state.strength)}% strength, break-even occurs at ${threshold.toFixed(1)}° and ${(360 - threshold).toFixed(1)}°. Between them the hum is stronger; outside them it is reduced.`;
     let title, body, level;
-    if (state.strength === 0) {
-      level = 'neutral'; title = 'No anti-noise: hum unchanged'; body = thresholdText;
-    } else if (r < 0.000001) {
-      level = 'good'; title = 'Perfect match: hum cancelled';
-      body = state.tonePhase === 360 ? 'One full cycle late is in phase again for this repeating pure tone. Equal strength and opposite pressure cancel the hum.'
-        : 'Equal strength, opposite pressure and zero delay cancel this ideal pure tone completely.';
-    } else if (Math.abs(cut) < 0.01) {
-      level = 'neutral'; title = 'Near break-even: hum RMS almost unchanged'; body = thresholdText;
-    } else if (cut > 0) {
-      level = cut >= 0.6 ? 'good' : 'warn'; title = `Hum RMS reduced by ${pct(cut)}%`;
-      body = `At ${pct(state.strength)}% strength and ${state.tonePhase}° delay (${ms.toFixed(2)} ms), ${pct(r)}% of the original hum amplitude remains. ${state.tonePhase % 360 === 0 ? 'The waves are aligned in time, but unequal strength leaves a residual.' : 'The strength and phase determine how much cancels.'}`;
+    if (cut >= 0.9) {
+      level = 'good'; title = `Good timing: hum ${pct(cut)}% quieter`;
+      body = 'The anti-noise peaks land exactly on the noise dips (and the other way round), so they cancel almost completely.';
+    } else if (cut >= 0.6) {
+      level = 'good'; title = `Slight delay: hum ${pct(cut)}% quieter`;
+      body = `Even ${ms.toFixed(1)} ms late is still helpful, but a small leftover wobble appears. Cancellation is strong, not perfect.`;
+    } else if (cut >= 0.2) {
+      level = 'warn'; title = `Noticeable delay: hum only ${pct(cut)}% quieter`;
+      body = 'The anti-noise is now far enough out of step that peaks and dips only partly line up. Most of the noise survives.';
+    } else if (cut >= -0.05) {
+      level = 'neutral'; title = 'Too late to help: no real change';
+      body = 'At roughly 60° late the anti-noise adds about as much as it takes away. This is the break-even point.';
     } else {
-      level = 'bad'; title = `Hum RMS increased by ${pct(-cut)}%`;
-      body = state.tonePhase === 180
-        ? `Half a cycle late, the waves reinforce each other. At ${pct(state.strength)}% strength the resulting amplitude is ${(1 + state.strength).toFixed(2)}× the original (2× only at 100% strength).`
-        : `At ${pct(state.strength)}% strength and ${state.tonePhase}° delay, the combined hum is ${r.toFixed(2)}× the original amplitude. These settings make the noise worse.`;
+      level = 'bad'; title = `Bad timing: hum ${pct(-cut)}% louder`;
+      body = state.tonePhase > 150 && state.tonePhase < 210
+        ? 'The anti-noise is half a cycle late, so its peaks line up with the noise peaks. They add together and the noise doubles.'
+        : 'The anti-noise is far enough out of step that it adds to the noise. Cancelling now makes things worse.';
     }
     const box = $('#tone-verdict');
     box.dataset.level = level;
     $('#tv-title').textContent = title;
     $('#tv-body').textContent = body;
-    $('#chart-tone-note').textContent = 'Below 1× means reduced noise RMS; above 1× means increased noise RMS. ' + thresholdText;
 
     $('#chart-noise-note').textContent = A.spread < 0.06
-      ? state.strength === 0 ? 'Strength is zero: there is no anti-noise, so every delay leaves the noise unchanged.'
-        : `${ST().label}: the residual changes little with delay at this strength in this simplified model.`
+      ? `${ST().label} has no steady pattern, so the curve is almost flat. Timing hardly matters, and neither does cancelling.`
       : `Move the Processing delay control to slide the dot. ${ST().label} is built from several tones, so its curve is bumpier than the pure hum.`;
   }
 
@@ -653,7 +536,7 @@ import { TAU, TONE_KHZ, TONE_PERIOD, TONE_AMP, NOISE, wantedWave, noiseUnit, for
     const tm = timing(), sn = strengthNote(), pn = predNote();
     const list = $('#why-list');
     list.textContent = '';
-    const items = state.noiseVol === 0 ? [tm] : state.anc ? [pn, tm, sn] : [{ level: 'neutral', text: 'Noise cancelling is OFF. Turn it on to see how well it works.' }, pn];
+    const items = state.anc ? [pn, tm, sn] : [{ level: 'neutral', text: 'Noise cancelling is OFF. Turn it on to see how well it works.' }, pn];
     for (const it of items) {
       const li = document.createElement('li');
       li.dataset.level = it.level;
@@ -663,14 +546,11 @@ import { TAU, TONE_KHZ, TONE_PERIOD, TONE_AMP, NOISE, wantedWave, noiseUnit, for
 
     const g = grade(A.cut);
     const box = $('#why');
-    if (state.noiseVol === 0) {
-      box.dataset.level = 'neutral';
-      $('#why-title').textContent = 'Right now: no background noise, nothing to cancel';
-    } else if (state.anc) {
+    if (state.anc) {
       box.dataset.level = g.level;
       $('#why-title').textContent = A.cut >= 0
-        ? `Right now: noise RMS is reduced by ${pct(A.cut)}% (${g.word.toLowerCase()})`
-        : `Right now: noise RMS increased by ${pct(-A.cut)}% (cancelling is backfiring)`;
+        ? `Right now: ${pct(A.cut)}% of the noise is removed (${g.word.toLowerCase()})`
+        : `Right now: the noise is ${pct(-A.cut)}% louder (cancelling is backfiring)`;
     } else {
       box.dataset.level = 'neutral';
       $('#why-title').textContent = 'Right now: no cancelling, you hear all of the noise';
@@ -683,10 +563,10 @@ import { TAU, TONE_KHZ, TONE_PERIOD, TONE_AMP, NOISE, wantedWave, noiseUnit, for
     };
     set(1, `The outside microphone listens for background noise, like ${ST().label.toLowerCase()} here at ${pct(state.noiseVol)}% volume. It can only measure air pressure, so it hears your music or voice mixed in too.`);
     set(2, `The processor looks for a pattern and estimates the noise wave a few milliseconds ahead. ${ST().label} is ${pct(A.pred)}% predictable, so it ${A.pred >= 0.85 ? 'can forecast it very accurately.' : A.pred >= 0.45 ? 'can only forecast part of it.' : 'has almost nothing to forecast.'}`);
-    set(3, state.noiseVol === 0 ? 'There is no background noise, so the generated anti-noise is zero.' : state.anc
+    set(3, state.anc
       ? `The speaker plays an opposite wave: peaks become dips. It is set to ${pct(state.strength)}% strength and arrives ${msText(state.delay)} after the noise.`
-      : 'No anti-noise is played because cancelling is off. The wanted sound can still play.');
-    set(4, state.noiseVol === 0 ? 'The noise and anti-noise are both zero. Only the wanted sound remains.' : state.anc
+      : 'The speaker is silent because cancelling is off. No opposite wave is played.');
+    set(4, state.anc
       ? `A peak (+1) meeting a dip (−1) adds to 0. Because the match is not perfect, ${pct(A.ratio)}% of the noise remains (${A.db > 0 ? '+' : ''}${A.db.toFixed(0)} dB). Cancelling is partial, not magic.`
       : 'With no opposite wave, nothing cancels. The full noise reaches your ear.');
     set(5, 'Fans, engines and air conditioners make the same wave again and again. Once the processor learns the pattern, the next moment is easy to guess, so the anti-noise lines up well.', state.type === 'hum' || state.type === 'cabin');
@@ -700,7 +580,6 @@ import { TAU, TONE_KHZ, TONE_PERIOD, TONE_AMP, NOISE, wantedWave, noiseUnit, for
     renderStage();
     renderTone();
     renderLogic();
-    syncAudio();
     dirty = true;
   }
 
@@ -709,63 +588,18 @@ import { TAU, TONE_KHZ, TONE_PERIOD, TONE_AMP, NOISE, wantedWave, noiseUnit, for
      ===================================================================== */
   const on = (sel, ev, fn) => $$(sel).forEach(el => el.addEventListener(ev, fn));
 
-  on('#btn-audio, #btn-audio-header', 'click', () => void setListening(!audio.playing));
-  on('#btn-mute', 'click', () => {
-    audio.muted = !audio.muted;
-    updateAudioGain();
-    renderAudio();
-  });
-  on('#ctl-listen', 'input', e => {
-    audio.volume = e.target.value / 100;
-    updateAudioGain();
-    renderAudio();
-  });
-  on('#ctl-source', 'change', e => { audio.source = e.target.value; syncAudio(); });
-  on('#btn-listen-tone', 'click', () => {
-    audio.source = 'timing';
-    syncAudio();
-    if (!audio.playing) void setListening(true);
-  });
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden && audio.playing) void setListening(false);
-  });
-  window.addEventListener('pagehide', () => {
-    audio.playing = false;
-    if (audio.gain) audio.gain.gain.value = 0;
-    void audio.context?.suspend();
-    renderAudio();
-  });
-
   on('#ctl-noise', 'input', e => { state.noiseVol = e.target.value / 100; render(); });
   on('#ctl-wanted', 'input', e => { state.wantedVol = e.target.value / 100; render(); });
   on('#ctl-strength', 'input', e => { state.strength = e.target.value / 100; render(); });
   on('#ctl-delay', 'input', e => { state.delay = e.target.value / 10; render(); });
   on('[data-type]', 'click', e => { state.type = e.currentTarget.dataset.type; render(); });
-  on('[data-type]', 'keydown', e => {
-    const keys = ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'];
-    if (!keys.includes(e.key)) return;
-    e.preventDefault();
-    const buttons = $$('[data-type]');
-    const index = buttons.indexOf(e.currentTarget);
-    const next = e.key === 'Home' ? 0 : e.key === 'End' ? buttons.length - 1
-      : (index + (e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length;
-    state.type = buttons[next].dataset.type;
-    render();
-    buttons[next].focus();
-  });
   on('[data-anc]', 'click', e => { state.anc = e.currentTarget.dataset.anc === 'on'; render(); });
-  on('#btn-reset', 'click', () => {
-    Object.assign(state, DEFAULTS, { tonePhase: 0 });
-    audio.source = 'main';
-    setTour(false);
-    render();
-  });
+  on('#btn-reset', 'click', () => { Object.assign(state, DEFAULTS, { tonePhase: 0 }); render(); });
 
   on('#btn-pause', 'click', () => setPaused(!state.paused));
   function setPaused(p) {
     state.paused = p;
-    $('#btn-pause').textContent = p ? 'Resume waves' : 'Pause waves';
-    $('#btn-pause').setAttribute('aria-pressed', String(p));
+    $('#btn-pause').textContent = p ? 'Play' : 'Pause';
     dirty = true;
   }
 
@@ -797,12 +631,11 @@ import { TAU, TONE_KHZ, TONE_PERIOD, TONE_AMP, NOISE, wantedWave, noiseUnit, for
   on('#st-tour', 'click', () => setTour(!state.tour));
 
   // Timing experiment
-  on('#ctl-tone', 'input', e => { state.tonePhase = +e.target.value; renderTone(); syncAudio(); dirty = true; });
-  on('[data-phase]', 'click', e => { state.tonePhase = +e.currentTarget.dataset.phase; renderTone(); syncAudio(); dirty = true; });
+  on('#ctl-tone', 'input', e => { state.tonePhase = +e.target.value; renderTone(); dirty = true; });
+  on('[data-phase]', 'click', e => { state.tonePhase = +e.currentTarget.dataset.phase; renderTone(); dirty = true; });
   on('#btn-apply', 'click', () => {
     state.type = 'hum';
     state.anc = true;
-    audio.source = 'main';
     state.delay = clamp(Math.round(toneDelay() * 10) / 10, 0, MAX_DELAY);
     render();
     $('#scene').scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth' });
@@ -812,9 +645,6 @@ import { TAU, TONE_KHZ, TONE_PERIOD, TONE_AMP, NOISE, wantedWave, noiseUnit, for
      Start
      ===================================================================== */
   readColors();
-  new ResizeObserver(([entry]) => {
-    document.documentElement.style.setProperty('--topbar-height', entry.target.getBoundingClientRect().height + 'px');
-  }).observe($('.topbar'));
   setPaused(state.paused);
   render();
   requestAnimationFrame(frame);
