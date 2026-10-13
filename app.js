@@ -1,18 +1,81 @@
-import { TAU, TONE_KHZ, TONE_PERIOD, TONE_AMP, NOISE, wantedWave, noiseUnit, forecastUnit, toneRatio, breakEvenDegrees, mainSample } from './signal-model.js';
+'use strict';
 
 (() => {
   /* =====================================================================
      Constants
      Time is measured in milliseconds, frequency in kHz (so cycles = kHz * ms).
      ===================================================================== */
+  const TAU = Math.PI * 2;
   const WINDOW_MS = 25;            // time span visible across every waveform
   const RANGE = 2;                 // vertical half-range, shared so volumes compare honestly
   const SCROLL_MS_PER_S = 9;       // how fast the waves drift to the right
   const STEP = 0.05;               // ms between samples in the analysis tables
   const MAX_DELAY = 8.4;           // ms, top of the delay slider (about one hum cycle)
+  const SKILL = 0.6;               // how much of the "slowly changing" noise the processor can follow
+  const TONE_KHZ = 0.12;           // the 120 Hz test hum in the timing experiment
+  const TONE_PERIOD = 1 / TONE_KHZ;
+  const TONE_AMP = 0.9;
   const MARK_X = [0.1, 0.26, 0.42, 0.58, 0.74, 0.9];  // x positions of the peak/dip markers
 
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* =====================================================================
+     Signal model
+     Every noise is built from three parts:
+       tonal : steady repeating tones      - fully predictable
+       slow  : irregular, slowly changing  - partly predictable
+       fast  : jittery randomness          - not predictable at all
+     The processor's forecast is  tonal + SKILL * slow.
+     ===================================================================== */
+  const hash = n => {
+    const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+    return (s - Math.floor(s)) * 2 - 1;
+  };
+  const vnoise = x => {                       // smooth random value noise in [-1, 1]
+    const i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f);
+    return hash(i) * (1 - u) + hash(i + 1) * u;
+  };
+  const slowPart = t => 0.7 * vnoise(t * 0.22 + 10) + 0.5 * vnoise(t * 0.57 + 50);
+  const fastPart = t => 0.7 * vnoise(t * 2.3 + 90) + 0.45 * vnoise(t * 4.9 + 130);
+
+  const NOISE = {
+    hum: {
+      label: 'Fan hum', gp: 1, gs: 0.05, gf: 0.03,
+      tone: t => 0.8 * Math.sin(TAU * 0.12 * t) + 0.3 * Math.sin(TAU * 0.24 * t + 0.6) + 0.12 * Math.sin(TAU * 0.36 * t + 1.9),
+      blurb: 'A steady, repeating low tone. The same wave over and over, so it is easy to predict.',
+      steady: true
+    },
+    cabin: {
+      label: 'Airplane cabin', gp: 0.8, gs: 0.3, gf: 0.12,
+      tone: t => 0.6 * Math.sin(TAU * 0.08 * t + 0.3) + 0.45 * Math.sin(TAU * 0.13 * t + 1.1) + 0.3 * Math.sin(TAU * 0.2 * t + 2.2) + 0.2 * Math.sin(TAU * 0.31 * t),
+      blurb: 'Constant engine rumble with a little turbulence. Mostly steady, a bit of randomness.',
+      steady: true
+    },
+    crowd: {
+      label: 'Crowd noise', gp: 0.15, gs: 0.5, gf: 0.7,
+      tone: t => Math.sin(TAU * 0.1 * t),
+      blurb: 'Voices that start, stop and overlap. Constantly changing, so hard to predict.',
+      steady: false
+    },
+    static: {
+      label: 'Random static', gp: 0, gs: 0.1, gf: 0.9,
+      tone: () => 0,
+      blurb: 'Pure hiss with no pattern at all. Nothing to predict, so almost nothing to cancel.',
+      steady: false
+    }
+  };
+
+  const wantedWave = t =>
+    0.85 * (0.7 * Math.sin(TAU * 0.28 * t) + 0.3 * Math.sin(TAU * 0.56 * t + 0.8)) * (1 + 0.25 * Math.sin(TAU * 0.03 * t));
+
+  const noiseUnit = (type, t) => {
+    const n = NOISE[type];
+    return n.gp * n.tone(t) + n.gs * slowPart(t) + n.gf * fastPart(t);
+  };
+  const forecastUnit = (type, t) => {         // what the processor can predict
+    const n = NOISE[type];
+    return n.gp * n.tone(t) + SKILL * n.gs * slowPart(t);
+  };
 
   /* =====================================================================
      State
@@ -33,7 +96,7 @@ import { TAU, TONE_KHZ, TONE_PERIOD, TONE_AMP, NOISE, wantedWave, noiseUnit, for
     antiIdeal: t => -state.noiseVol * noiseUnit(state.type, t),
     anti: t => state.anc ? -state.strength * state.noiseVol * forecastUnit(state.type, t - state.delay) : 0,
     mic: t => sig.wanted(t) + sig.noise(t),
-    out: t => mainSample(state, t),
+    out: t => sig.mic(t) + sig.anti(t),
     residual: t => sig.noise(t) + sig.anti(t)
   };
 
@@ -45,6 +108,7 @@ import { TAU, TONE_KHZ, TONE_PERIOD, TONE_AMP, NOISE, wantedWave, noiseUnit, for
     result: t => tone.noise(t) + tone.anti(t)
   };
   // Leftover amplitude when a sine is cancelled by a copy that is `deg` late:  |1 - s*e^(-j*phi)|
+  const toneRatio = (s, deg) => Math.sqrt(1 + s * s - 2 * s * Math.cos(deg * Math.PI / 180));
 
   /* =====================================================================
      Analysis: how much noise is left? (computed once per settings change)
